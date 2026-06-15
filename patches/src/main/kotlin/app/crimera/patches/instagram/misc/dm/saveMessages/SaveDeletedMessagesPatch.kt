@@ -12,47 +12,69 @@ import app.crimera.patches.instagram.utils.Constants.INTEGRATIONS_PACKAGE
 import app.crimera.patches.instagram.utils.enableSettings
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.util.indexOfFirstInstructionOrThrow
+import app.morphe.util.findFreeRegister
 import app.morphe.util.registersUsed
 import com.android.tools.smali.dexlib2.Opcode
 
-private const val HOOK_DESCRIPTOR = "$INTEGRATIONS_PACKAGE/patches/dm/SavedMessagesHook;"
+private const val HOOK_CLASS = "$INTEGRATIONS_PACKAGE/patches/dm/SavedMessagesHook;"
 
 @Suppress("unused")
 val saveDeletedMessagesPatch =
     bytecodePatch(
         name = "Save deleted messages",
-        description = "Intercepts incoming DMs at the server-receive point and stores them locally. Marks messages as deleted when the sender unsends them.",
+        description = "Captures incoming DMs locally as they arrive from the server and marks them when the sender deletes them.",
     ) {
         dependsOn(settingsPatch)
         compatibleWith(COMPATIBILITY_INSTAGRAM)
 
         execute {
-            // --- Hook 1: Capture incoming messages ---
-            // Targets the method that stores a received DirectItem in the thread.
-            // Assumed signature: void method(String threadId, Object directItem, ...)
-            // p0 = this, p1 = threadId (String), p2 = DirectItem object.
-            // If the fingerprint matches a different signature, inspect the smali and
-            // adjust the p-register indices below accordingly.
-            DirectMessageReceiveFingerprint.method.apply {
+
+            // --- Hook 1: Capture each message as it arrives from server ---
+            // Hooks the DirectThreadItem JSON parser just before it returns the
+            // parsed object. We capture the object here for storage.
+            DirectMessageItemParseFingerprint.method.apply {
+                val returnObjIndex = instructions.indexOfLast { it.opcode == Opcode.RETURN_OBJECT }
+                val itemRegister = getInstruction(returnObjIndex).registersUsed[0]
+
                 addInstructions(
-                    0,
+                    returnObjIndex,
                     """
-                    invoke-static {p2, p1}, $HOOK_DESCRIPTOR->onMessageReceived(Ljava/lang/Object;Ljava/lang/String;)V
+                    invoke-static {v$itemRegister}, $HOOK_CLASS->onMessageReceived(Ljava/lang/Object;)V
                     """.trimIndent(),
                 )
             }
 
-            // --- Hook 2: Detect message deletion (unsend) ---
-            // Targets the method that handles an item_removed / unsend MQTT event.
-            // Assumed signature: void method(String threadId, String itemId, ...)
-            // p0 = this, p1 = threadId (String), p2 = itemId (String).
-            DirectMessageUnsendFingerprint.method.apply {
+            // --- Hook 2: Detect real-time message deletion (unsend) ---
+            // Hooks the MQTT event handler that fires when "item_removed" action
+            // arrives. Passes the first two String parameters (threadId, itemId).
+            DirectMessageItemRemovedFingerprint.method.apply {
+                val freeReg = findFreeRegister(0)
+
                 addInstructions(
                     0,
                     """
-                    invoke-static {p2, p1}, $HOOK_DESCRIPTOR->onMessageDeleted(Ljava/lang/String;Ljava/lang/String;)V
+                    move-object/from16 v$freeReg, p1
+                    move-object/from16 v${freeReg + 1}, p2
+                    invoke-static {v$freeReg, v${freeReg + 1}}, $HOOK_CLASS->onMessageDeleted(Ljava/lang/String;Ljava/lang/String;)V
+                    """.trimIndent(),
+                )
+            }
+
+            // --- Hook 3: Inject "View deleted messages" button into compose bar ---
+            // Hooks onTextChanged of the DM compose bar TextWatcher. On the first
+            // call, our extension checks whether the button is already present in the
+            // EditText's parent and, if not, adds it. p0 = the TextWatcher instance,
+            // from which we can reach the EditText via reflection.
+            DirectComposeBarTextWatcherFingerprint.method.apply {
+                val freeReg = findFreeRegister(0)
+
+                addInstructions(
+                    0,
+                    """
+                    move-object/from16 v$freeReg, p0
+                    invoke-static {v$freeReg}, $HOOK_CLASS->addDeletedMessagesButton(Ljava/lang/Object;)V
                     """.trimIndent(),
                 )
             }

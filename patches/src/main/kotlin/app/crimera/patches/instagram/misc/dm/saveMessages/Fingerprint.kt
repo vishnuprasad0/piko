@@ -9,26 +9,35 @@ package app.crimera.patches.instagram.misc.dm.saveMessages
 import app.morphe.patcher.Fingerprint
 
 /**
- * Targets the method that processes an incoming DirectItem after server deserialization
- * and inserts it into Instagram's local thread store.
- *
- * String "DirectItemDeserializer" appears in the logging call within this method.
- * If this fingerprint fails, use ObjectBrowser on a received DirectItem object,
- * find the class name, then search smali for log calls containing that class name.
+ * Targets Instagram's DirectThreadItem JSON parser.
+ * "item_id", "user_id", "item_type" are literal field-name constants in the
+ * JSONObject.getString()/optString() calls inside this method — same approach
+ * as EphemeralMediaJsonParserFingerprint uses "url_expire_at_secs" etc.
  */
-internal object DirectMessageReceiveFingerprint : Fingerprint(
-    strings = listOf("DirectItemDeserializer"),
+internal object DirectMessageItemParseFingerprint : Fingerprint(
+    strings = listOf("item_id", "user_id", "item_type"),
+    returnType = "Ljava/lang/Object;",
+)
+
+/**
+ * Targets the MQTT real-time event handler for item removal.
+ * "item_removed" is the action-type string sent by Instagram's server when
+ * a sender unsends (deletes) a message. Appears as a const-string in the
+ * switch/if block that dispatches MQTT direct thread events.
+ */
+internal object DirectMessageItemRemovedFingerprint : Fingerprint(
+    strings = listOf("item_removed"),
     returnType = "V",
 )
 
 /**
- * Targets the method that handles a server-signalled message unsend/delete.
- * Instagram uses "unsend" as the action key when a DM is deleted by the sender.
- *
- * String "DirectUnsendItemUseCase" appears in the logging call within the unsend handler.
- * If this fingerprint fails, search smali for "unsend" or "item_removed" string constants.
+ * Targets the TextWatcher attached to the DM compose bar EditText.
+ * Same class as DisableTypingStatusPatch's OnTextChangedFingerprint — we
+ * duplicate the fingerprint here so we can access classDef independently
+ * and inject the compose-bar button setup without touching the typing patch.
  */
-internal object DirectMessageUnsendFingerprint : Fingerprint(
-    strings = listOf("DirectUnsendItemUseCase"),
+internal object DirectComposeBarTextWatcherFingerprint : Fingerprint(
+    name = "onTextChanged",
+    parameters = listOf("Ljava/lang/CharSequence;", "I", "I", "I"),
     returnType = "V",
 )

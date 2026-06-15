@@ -98,6 +98,18 @@ public class PikoMessageDb extends SQLiteOpenHelper {
         return result;
     }
 
+    public List<String[]> getDeletedMessagesForThread(String threadId) {
+        List<String[]> result = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor c = db.query(TABLE, null, "is_deleted = 1 AND thread_id = ?",
+            new String[]{threadId}, null, null, "timestamp DESC");
+        while (c.moveToNext()) {
+            result.add(rowToStringArray(c));
+        }
+        c.close();
+        return result;
+    }
+
     // Returns [messageId, threadId, senderUsername, content, messageType, timestamp, isDeleted]
     public List<String[]> getAllMessages() {
         List<String[]> result = new ArrayList<>();
