@@ -135,3 +135,7 @@ bin/
 /local.properties
 
 .direnv
+
+# Claude Code
+CLAUDE.md
+.claude/

@@ -181,4 +181,8 @@ public class Strings {
     public static String WELCOME_MESSAGE = langInstance.WELCOME_MESSAGE;
     public static String GOTO_PIKO_SETTINGS = langInstance.GOTO_PIKO_SETTINGS;
     public static String NO_INTERNET = langInstance.NO_INTERNET;
+
+    public static final String SAVE_DELETED_MESSAGES = langInstance.SAVE_DELETED_MESSAGES;
+    public static final String SAVE_DELETED_MESSAGES_DESC = langInstance.SAVE_DELETED_MESSAGES_DESC;
+    public static final String VIEW_DELETED_MESSAGES = langInstance.VIEW_DELETED_MESSAGES;
 }

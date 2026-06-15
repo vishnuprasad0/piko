@@ -233,5 +233,9 @@ public class Pref {
         return SharedPref.getBooleanPref(Settings.ENABLE_MORE_OPTIONS_ON_POST);
     }
 
+    public static boolean saveDeletedMessages() {
+        return SharedPref.getBooleanPref(Settings.SAVE_DELETED_MESSAGES) && SettingsStatus.saveDeletedMessages;
+    }
+
     //end
 }

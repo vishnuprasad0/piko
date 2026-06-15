@@ -146,6 +146,7 @@ public class SettingsActivity extends Activity {
 
             screenBuilder.buildAdsSection();
             screenBuilder.ghostSection();
+            screenBuilder.dmSection();
             screenBuilder.linksSection();
             screenBuilder.distractionFreeSection();
             screenBuilder.buildMiscSection();

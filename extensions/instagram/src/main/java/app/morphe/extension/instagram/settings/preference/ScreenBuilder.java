@@ -9,11 +9,13 @@ package app.morphe.extension.instagram.settings.preference;
 
 
 import android.content.Context;
+import android.content.Intent;
 import android.preference.PreferenceScreen;
 import android.preference.Preference;
 import android.preference.PreferenceCategory;
 
 import app.morphe.extension.instagram.constants.Strings;
+import app.morphe.extension.instagram.patches.dm.DeletedMessagesActivity;
 import app.morphe.extension.instagram.settings.SettingsStatus;
 import app.morphe.extension.instagram.settings.Settings;
 import app.morphe.extension.instagram.settings.preference.widgets.*;
@@ -199,6 +201,30 @@ public class ScreenBuilder {
             );
         }
 
+    }
+
+    public void dmSection() {
+        if (!SettingsStatus.saveDeletedMessages) return;
+
+        PreferenceCategory category = addCategory("Direct Messages");
+
+        addPreference(category,
+            helper.switchPreference(
+                Strings.SAVE_DELETED_MESSAGES,
+                Strings.SAVE_DELETED_MESSAGES_DESC,
+                Settings.SAVE_DELETED_MESSAGES
+            )
+        );
+
+        if (SettingsStatus.saveDeletedMessages) {
+            Preference viewBtn = new Preference(context);
+            viewBtn.setTitle(Strings.VIEW_DELETED_MESSAGES);
+            viewBtn.setOnPreferenceClickListener(pref -> {
+                context.startActivity(new Intent(context, DeletedMessagesActivity.class));
+                return true;
+            });
+            addPreference(category, viewBtn);
+        }
     }
 
     public void linksSection() {

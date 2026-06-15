@@ -173,4 +173,8 @@ public class DefaultStrings {
     public static String GOTO_PIKO_SETTINGS = "Goto Piko settings";
     public static String NO_INTERNET = "Please connect to internet";
 
+    public static String SAVE_DELETED_MESSAGES = "Save deleted messages";
+    public static String SAVE_DELETED_MESSAGES_DESC = "Captures incoming DMs locally as they arrive from the server. Marks messages as deleted when unsent, so you can view them even after the sender deletes them.";
+    public static String VIEW_DELETED_MESSAGES = "View deleted messages";
+
 }
