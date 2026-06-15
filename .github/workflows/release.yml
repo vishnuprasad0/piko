@@ -53,8 +53,8 @@ jobs:
           # smali (MorpheApp fork) — JitPack can't build this commit, so we do it
           git clone https://github.com/MorpheApp/smali.git
           cd smali
-          git fetch --depth=1 origin d856bad65f4b724d1bfb3ab8b20047a4b8dc5cfe
-          git checkout d856bad65f4b724d1bfb3ab8b20047a4b8dc5cfe
+          git fetch --depth=1 origin d856bad65fc7d912e72f899fe8105a945a258dc5
+          git checkout d856bad65fc7d912e72f899fe8105a945a258dc5
           cat > jitpack-init.gradle << 'INIT_EOF'
           gradle.allprojects { p ->
               p.afterEvaluate {
@@ -79,8 +79,8 @@ jobs:
           # ARSCLib (MorpheApp fork) — JitPack can't build this commit either
           git clone https://github.com/MorpheApp/ARSCLib.git
           cd ARSCLib
-          git fetch --depth=1 origin 9696ffecda
-          git checkout 9696ffecda
+          git fetch --depth=1 origin 9696ffecda371e382c7dc6b7261db156bd2281df
+          git checkout 9696ffecda371e382c7dc6b7261db156bd2281df
           cat > jitpack-init.gradle << 'INIT_EOF'
           allprojects {
               apply plugin: 'maven-publish'
