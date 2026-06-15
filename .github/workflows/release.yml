@@ -45,6 +45,64 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           fingerprint: ${{ vars.GPG_FINGERPRINT }}
 
+      - name: Build JitPack dependencies from source
+        run: |
+          mkdir -p morphe-jitpack-deps
+          cd morphe-jitpack-deps
+
+          # smali (MorpheApp fork) — JitPack can't build this commit, so we do it
+          git clone https://github.com/MorpheApp/smali.git
+          cd smali
+          git fetch --depth=1 origin d856bad65f4b724d1bfb3ab8b20047a4b8dc5cfe
+          git checkout d856bad65f4b724d1bfb3ab8b20047a4b8dc5cfe
+          cat > jitpack-init.gradle << 'INIT_EOF'
+          gradle.allprojects { p ->
+              p.afterEvaluate {
+                  if (p.name == 'smali') {
+                      p.group = 'com.github.MorpheApp.smali'
+                      p.version = 'd856bad65f'
+                      if (p.plugins.hasPlugin('maven-publish')) {
+                          p.publishing.publications.withType(org.gradle.api.publish.maven.MavenPublication) { pub ->
+                              pub.groupId = 'com.github.MorpheApp.smali'
+                              pub.artifactId = 'smali'
+                              pub.version = 'd856bad65f'
+                          }
+                      }
+                  }
+              }
+          }
+          INIT_EOF
+          ./gradlew :smali:publishToMavenLocal -I jitpack-init.gradle --no-daemon -x sign 2>/dev/null || \
+          ./gradlew :smali:publishToMavenLocal -I jitpack-init.gradle --no-daemon
+          cd ..
+
+          # ARSCLib (MorpheApp fork) — JitPack can't build this commit either
+          git clone https://github.com/MorpheApp/ARSCLib.git
+          cd ARSCLib
+          git fetch --depth=1 origin 9696ffecda
+          git checkout 9696ffecda
+          cat > jitpack-init.gradle << 'INIT_EOF'
+          allprojects {
+              apply plugin: 'maven-publish'
+              group = 'com.github.MorpheApp'
+              version = '9696ffecda'
+              afterEvaluate {
+                  publishing {
+                      publications {
+                          jitpack(org.gradle.api.publish.maven.MavenPublication) {
+                              groupId = 'com.github.MorpheApp'
+                              artifactId = 'ARSCLib'
+                              version = '9696ffecda'
+                              from components.java
+                          }
+                      }
+                  }
+              }
+          }
+          INIT_EOF
+          ./gradlew publishToMavenLocal -I jitpack-init.gradle --no-daemon
+          cd ..
+
       - name: Release
         uses: cycjimmy/semantic-release-action@v5
         id: release
