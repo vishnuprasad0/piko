@@ -14,7 +14,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.util.findFreeRegister
+import app.morphe.util.getFreeRegisterProvider
 import app.morphe.util.registersUsed
 import com.android.tools.smali.dexlib2.Opcode
 
@@ -33,10 +33,11 @@ val saveDeletedMessagesPatch =
 
             // --- Hook 1: Capture each message as it arrives from server ---
             // Hooks the DirectThreadItem JSON parser just before it returns the
-            // parsed object. We capture the object here for storage.
+            // parsed object. Uses .last { }.location.index (confirmed Morphe pattern).
             DirectMessageItemParseFingerprint.method.apply {
-                val returnObjIndex = instructions.indexOfLast { it.opcode == Opcode.RETURN_OBJECT }
-                val itemRegister = getInstruction(returnObjIndex).registersUsed[0]
+                val returnObjInstruction = instructions.last { it.opcode == Opcode.RETURN_OBJECT }
+                val returnObjIndex = returnObjInstruction.location.index
+                val itemRegister = returnObjInstruction.registersUsed[0]
 
                 addInstructions(
                     returnObjIndex,
@@ -47,34 +48,36 @@ val saveDeletedMessagesPatch =
             }
 
             // --- Hook 2: Detect real-time message deletion (unsend) ---
-            // Hooks the MQTT event handler that fires when "item_removed" action
-            // arrives. Passes the first two String parameters (threadId, itemId).
+            // Hooks the MQTT "item_removed" dispatcher. Allocates two free registers
+            // with getFreeRegisterProvider so they are guaranteed non-overlapping.
+            // p1 = threadId (String), p2 = itemId (String).
             DirectMessageItemRemovedFingerprint.method.apply {
-                val freeReg = findFreeRegister(0)
+                val provider = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 2)
+                val reg1 = provider.getFreeRegister()
+                val reg2 = provider.getFreeRegister()
 
                 addInstructions(
                     0,
                     """
-                    move-object/from16 v$freeReg, p1
-                    move-object/from16 v${freeReg + 1}, p2
-                    invoke-static {v$freeReg, v${freeReg + 1}}, $HOOK_CLASS->onMessageDeleted(Ljava/lang/String;Ljava/lang/String;)V
+                    move-object/from16 v$reg1, p1
+                    move-object/from16 v$reg2, p2
+                    invoke-static {v$reg1, v$reg2}, $HOOK_CLASS->onMessageDeleted(Ljava/lang/String;Ljava/lang/String;)V
                     """.trimIndent(),
                 )
             }
 
             // --- Hook 3: Inject "View deleted messages" button into compose bar ---
-            // Hooks onTextChanged of the DM compose bar TextWatcher. On the first
-            // call, our extension checks whether the button is already present in the
-            // EditText's parent and, if not, adds it. p0 = the TextWatcher instance,
-            // from which we can reach the EditText via reflection.
+            // onTextChanged fires every time the user types in the DM input.
+            // Our hook checks if the button is already present and, if not, adds it.
+            // p0 = the TextWatcher instance (used to locate the EditText via reflection).
             DirectComposeBarTextWatcherFingerprint.method.apply {
-                val freeReg = findFreeRegister(0)
+                val reg = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 1).getFreeRegister()
 
                 addInstructions(
                     0,
                     """
-                    move-object/from16 v$freeReg, p0
-                    invoke-static {v$freeReg}, $HOOK_CLASS->addDeletedMessagesButton(Ljava/lang/Object;)V
+                    move-object/from16 v$reg, p0
+                    invoke-static {v$reg}, $HOOK_CLASS->addDeletedMessagesButton(Ljava/lang/Object;)V
                     """.trimIndent(),
                 )
             }
