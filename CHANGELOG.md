@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/vishnuprasad0/piko/compare/v1.0.1...v1.1.0) (2026-06-16)
+
+### ✨ New Features
+
+* **instagram:** detect unsent DMs, notify, and store for per-chat viewing ([3a51562](https://github.com/vishnuprasad0/piko/commit/3a51562111a654c5f31ba10e2661cff166a0bf7a))
+
 ## [1.0.1](https://github.com/vishnuprasad0/piko/compare/v1.0.0...v1.0.1) (2026-06-16)
 
 ### 🐛 Bug Fixes

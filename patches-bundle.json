@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-16T18:15:22",
-  "description": "## [1.0.1](https://github.com/vishnuprasad0/piko/compare/v1.0.0...v1.0.1) (2026-06-16)\n\n### 🐛 Bug Fixes\n\n* **instagram:** make save-deleted-messages apply on IG v426 ([4d37437](https://github.com/vishnuprasad0/piko/commit/4d37437288cd0159c6af96619df17483164f25c1))",
-  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.0.1/patches-1.0.1.mpp",
-  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.0.1/patches-1.0.1.mpp.asc",
-  "version": "1.0.1"
+  "created_at": "2026-06-16T20:38:38",
+  "description": "## [1.1.0](https://github.com/vishnuprasad0/piko/compare/v1.0.1...v1.1.0) (2026-06-16)\n\n### ✨ New Features\n\n* **instagram:** detect unsent DMs, notify, and store for per-chat viewing ([3a51562](https://github.com/vishnuprasad0/piko/commit/3a51562111a654c5f31ba10e2661cff166a0bf7a))",
+  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.0/patches-1.1.0.mpp",
+  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.0/patches-1.1.0.mpp.asc",
+  "version": "1.1.0"
 }
