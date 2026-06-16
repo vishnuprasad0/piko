@@ -76,13 +76,122 @@ public class SavedMessagesHook {
                 }
             } catch (Exception ignored) {}
 
-            if (messageId == null) return;
+            if (messageId == null) {
+                // Field mapping unknown on this build: dump the object once so the
+                // exact obfuscated field names can be read from logcat (ObjectBrowser-lite).
+                dumpUnknownItemOnce(item);
+                return;
+            }
 
-            PikoMessageDb.getInstance(PikoUtils.getContext())
-                .insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
+            PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
+
+            // Deletion (unsend) detection. The realtime protobuf model
+            // com.instagram.direct.model.protobufmodel.Message exposes a STABLE,
+            // non-obfuscated boolean field "hideInThread_"; the JSON/graphql item
+            // uses key "hide_in_thread" / "is_deleted_for_self". Try each.
+            boolean deleted = readBool(item, "hideInThread_")
+                || readBool(item, "hide_in_thread")
+                || readBool(item, "is_deleted_for_self");
+
+            if (deleted) {
+                // Capture content first (so the row exists), then mark + notify.
+                db.insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
+                db.markDeleted(messageId);
+                notifyDeletion(senderUser, content, type);
+            } else {
+                db.insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
+            }
 
         } catch (Exception e) {
             Logger.printException(() -> "SavedMessagesHook.onMessageReceived: " + e);
+        }
+    }
+
+    /** Read a boolean field by exact name, tolerating Boolean/boolean. Returns false if absent. */
+    private static boolean readBool(Object obj, String fieldName) {
+        try {
+            Field f = obj.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            Object v = f.get(obj);
+            return v instanceof Boolean && (Boolean) v;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static final java.util.Set<String> DUMPED_CLASSES =
+        java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+
+    /**
+     * Logs the class name and every declared field (name = value) the first time an
+     * unmappable item of a given class is seen. Use the logcat output (tag: piko) to
+     * identify the obfuscated item_id / hide_in_thread / sender / text fields for this
+     * Instagram version, then wire them into the reflection above.
+     */
+    private static void dumpUnknownItemOnce(Object item) {
+        try {
+            if (item == null) return;
+            String cls = item.getClass().getName();
+            if (!DUMPED_CLASSES.add(cls)) return;
+            StringBuilder sb = new StringBuilder("SavedMessagesHook ObjectBrowser dump for ").append(cls).append(":\n");
+            for (Field f : item.getClass().getDeclaredFields()) {
+                f.setAccessible(true);
+                Object v;
+                try { v = f.get(item); } catch (Exception e) { v = "<inaccessible>"; }
+                String vs = v == null ? "null" : v.toString();
+                if (vs.length() > 80) vs = vs.substring(0, 80) + "…";
+                sb.append("  ").append(f.getType().getSimpleName()).append(' ')
+                  .append(f.getName()).append(" = ").append(vs).append('\n');
+            }
+            String out = sb.toString();
+            Logger.printInfo(() -> out);
+        } catch (Exception ignored) {}
+    }
+
+    /** Post a system notification when a received message is detected as unsent. */
+    private static void notifyDeletion(String sender, String content, String type) {
+        try {
+            Context ctx = PikoUtils.getContext();
+            if (ctx == null) return;
+
+            android.app.NotificationManager nm =
+                (android.app.NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null) return;
+
+            String channelId = "piko_deleted_messages";
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                android.app.NotificationChannel ch = new android.app.NotificationChannel(
+                    channelId, "Deleted messages", android.app.NotificationManager.IMPORTANCE_DEFAULT);
+                ch.setDescription("Notifies when a received message is unsent");
+                nm.createNotificationChannel(ch);
+            }
+
+            String who = (sender != null && !sender.isEmpty()) ? "@" + sender : "Someone";
+            String body = (content != null && !content.isEmpty()) ? content : "[" + type + "]";
+
+            Intent intent = new Intent(ctx, DeletedMessagesActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            int piFlags = android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                | (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
+                    ? android.app.PendingIntent.FLAG_IMMUTABLE : 0);
+            android.app.PendingIntent pi = android.app.PendingIntent.getActivity(ctx, 0, intent, piFlags);
+
+            int iconRes = ctx.getApplicationInfo().icon;
+            android.app.Notification.Builder b =
+                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                    ? new android.app.Notification.Builder(ctx, channelId)
+                    : new android.app.Notification.Builder(ctx);
+            android.app.Notification n = b
+                .setSmallIcon(iconRes != 0 ? iconRes : android.R.drawable.ic_dialog_info)
+                .setContentTitle(who + " unsent a message")
+                .setContentText(body)
+                .setAutoCancel(true)
+                .setContentIntent(pi)
+                .build();
+
+            nm.notify((int) (System.currentTimeMillis() & 0x7fffffff), n);
+        } catch (Exception e) {
+            Logger.printException(() -> "SavedMessagesHook.notifyDeletion: " + e);
         }
     }
 
