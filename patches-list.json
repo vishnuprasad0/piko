@@ -1,5 +1,5 @@
 {
-  "version": "3.4.0",
+  "version": "1.0.0",
   "patches": [
     {
       "name": "Add ability to copy media link",
@@ -4199,6 +4199,33 @@
     {
       "name": "Sanitize share links",
       "description": null,
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.instagram.android",
+          "name": "Instagram",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#FC483C",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "426.0.0.37.68",
+              "isExperimental": false,
+              "minSdk": null,
+              "description": "Tested on version code - 383207248, 383207252"
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Save deleted messages",
+      "description": "Captures incoming DMs locally as they arrive from the server and marks them when the sender deletes them.",
       "default": true,
       "dependencies": [
         "BytecodePatch"

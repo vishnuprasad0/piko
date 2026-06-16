@@ -47,7 +47,7 @@ java -jar cli.jar patch --patches piko.mpp input.apkm
 ## ⚙️ Patch Details
 
 <!-- PATCHES_START -->
-> **[v3.4.0](https://github.com/crimera/piko/releases/tag/v3.4.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;117 patches total
+> **[v1.0.0](https://github.com/vishnuprasad0/piko/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;118 patches total
 <details>
 <summary>📦 X&nbsp;&nbsp;•&nbsp;&nbsp;71 patches</summary>
 <br>
@@ -134,7 +134,7 @@ java -jar cli.jar patch --patches piko.mpp input.apkm
 </details>
 
 <details>
-<summary>📦 Instagram&nbsp;&nbsp;•&nbsp;&nbsp;46 patches</summary>
+<summary>📦 Instagram&nbsp;&nbsp;•&nbsp;&nbsp;47 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -183,6 +183,7 @@ java -jar cli.jar patch --patches piko.mpp input.apkm
 | [Remove build expired popup](#remove-build-expired-popup) | Removes the popup that appears after a while, when the app version ages. |  |
 | [Remove empty bottom space](#remove-empty-bottom-space) | Removes empty space below bottom navigation bar |  |
 | [Sanitize share links](#sanitize-share-links) |  |  |
+| [Save deleted messages](#save-deleted-messages) | Captures incoming DMs locally as they arrive from the server and marks them when the sender deletes them. |  |
 | [Stories audio autoplay](#stories-audio-autoplay) |  |  |
 | [Unlock Plus benefits](#unlock-plus-benefits) | Unlocks 'Plus' subscription benefits that are checked locally. USE IT AT YOUR OWN RISK |  |
 | [Unlock developer options](#unlock-developer-options) | Unlocks developer option by long pressing home icon |  |
