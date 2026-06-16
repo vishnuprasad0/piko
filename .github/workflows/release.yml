@@ -55,6 +55,10 @@ jobs:
           cd smali
           git fetch --depth=1 origin d856bad65fc7d912e72f899fe8105a945a258dc5
           git checkout d856bad65fc7d912e72f899fe8105a945a258dc5
+          # Step 1: publish all smali subprojects with native coords so transitive deps resolve
+          ./gradlew publishToMavenLocal --no-daemon -x sign 2>/dev/null || \
+          ./gradlew publishToMavenLocal --no-daemon
+          # Step 2: also publish smali with JitPack coords so morphe-patcher can resolve it
           cat > jitpack-init.gradle << 'INIT_EOF'
           gradle.allprojects { p ->
               p.afterEvaluate {
