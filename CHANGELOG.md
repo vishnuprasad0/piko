@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/vishnuprasad0/piko/compare/v1.0.0...v1.0.1) (2026-06-16)
+
+### 🐛 Bug Fixes
+
+* **instagram:** make save-deleted-messages apply on IG v426 ([4d37437](https://github.com/vishnuprasad0/piko/commit/4d37437288cd0159c6af96619df17483164f25c1))
+
 ## 1.0.0 (2026-06-16)
 
 ### ⚠ BREAKING CHANGES
