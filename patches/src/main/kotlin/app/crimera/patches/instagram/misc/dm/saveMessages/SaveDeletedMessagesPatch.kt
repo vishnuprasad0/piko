@@ -47,24 +47,11 @@ val saveDeletedMessagesPatch =
                 )
             }
 
-            // --- Hook 2: Detect real-time message deletion (unsend) ---
-            // Hooks the MQTT "item_removed" dispatcher. Allocates two free registers
-            // with getFreeRegisterProvider so they are guaranteed non-overlapping.
-            // p1 = threadId (String), p2 = itemId (String).
-            DirectMessageItemRemovedFingerprint.method.apply {
-                val provider = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 2)
-                val reg1 = provider.getFreeRegister()
-                val reg2 = provider.getFreeRegister()
-
-                addInstructions(
-                    0,
-                    """
-                    move-object/from16 v$reg1, p1
-                    move-object/from16 v$reg2, p2
-                    invoke-static {v$reg1, v$reg2}, $HOOK_CLASS->onMessageDeleted(Ljava/lang/String;Ljava/lang/String;)V
-                    """.trimIndent(),
-                )
-            }
+            // --- Hook 2 (real-time unsend detection): intentionally omitted on v426 ---
+            // See Fingerprint.kt: "item_removed" does not exist on v426 and the unsend
+            // signal is hide_in_thread on the DirectItem model. Wiring this correctly
+            // needs runtime ObjectBrowser field mapping. Until then, capture (Hook 1)
+            // and the compose-bar button (Hook 3) are applied; deletion marking is TODO.
 
             // --- Hook 3: Inject "View deleted messages" button into compose bar ---
             // onTextChanged fires every time the user types in the DM input.

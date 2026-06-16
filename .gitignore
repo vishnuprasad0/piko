@@ -139,3 +139,7 @@ bin/
 # Claude Code
 CLAUDE.md
 .claude/
+
+# local RE / test tooling
+.tools/
+bash.exe.stackdump
