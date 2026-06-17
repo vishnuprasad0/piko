@@ -102,6 +102,35 @@ function dumpObject(label, javaObj) {
             if (f.getName() === V426.fields.thread_key)     marker = '  ◄ thread_key';
             if (f.getName() === V426.fields.text_content)   marker = '  ◄ text';
             console.log('  ' + f.getType().getSimpleName() + ' ' + f.getName() + ' = ' + vs + marker);
+
+            // For action_log items (A1Y=true), the A0o field on X.0gF holds an object
+            // (type X.3jS) that likely references the original deleted item_id.
+            // Safe deep-dump: only String fields, no recursive getClass() calls.
+            if (f.getName() === 'A0o' && val !== null && !(vs.startsWith('null'))) {
+                try {
+                    var innerCls = val.getClass();
+                    var cname = innerCls.getName();
+                    // Only inspect known obfuscated X.* classes, avoid system objects
+                    if (cname.length < 8 && cname.startsWith('X.')) {
+                        console.log('  ↳ A0o fields (' + cname + '):');
+                        while (innerCls && innerCls.getName() !== 'java.lang.Object') {
+                            var iFields = innerCls.getDeclaredFields();
+                            for (var j = 0; j < iFields.length; j++) {
+                                var fi = iFields[j];
+                                fi.setAccessible(true);
+                                try {
+                                    var iv = fi.get(val);
+                                    var ivs = (iv === null) ? 'null' : iv.toString();
+                                    if (ivs.length > 120) ivs = ivs.substring(0, 120) + '…';
+                                    var imark = (ivs.match && ivs.match(/^\d{30,}$/)) ? '  ◄ item_id ref?' : '';
+                                    console.log('      ' + fi.getType().getSimpleName() + ' ' + fi.getName() + ' = ' + ivs + imark);
+                                } catch (e2) {}
+                            }
+                            innerCls = innerCls.getSuperclass();
+                        }
+                    }
+                } catch (e) { /* skip if getClass fails on native-backed object */ }
+            }
         }
         cls = cls.getSuperclass();
     }
