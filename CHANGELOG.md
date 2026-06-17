@@ -1,3 +1,9 @@
+## [1.1.1-dev.4](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.3...v1.1.1-dev.4) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **instagram:** wire save-deleted-messages hook to correct v426 parser method ([f85a77d](https://github.com/vishnuprasad0/piko/commit/f85a77d9279193cbe77ebc2eccd9ab4c34012268))
+
 ## [1.1.1-dev.3](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.2...v1.1.1-dev.3) (2026-06-17)
 
 ### 🐛 Bug Fixes
