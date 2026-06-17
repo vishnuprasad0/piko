@@ -1,3 +1,9 @@
+## [1.1.1-dev.5](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.4...v1.1.1-dev.5) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **instagram:** hook MQTT path for save-deleted-messages via LX/0gF;.A0P ([83a1141](https://github.com/vishnuprasad0/piko/commit/83a1141d3016e4a33916220169ba66c1bd9b6057))
+
 ## [1.1.1-dev.4](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.3...v1.1.1-dev.4) (2026-06-17)
 
 ### 🐛 Bug Fixes

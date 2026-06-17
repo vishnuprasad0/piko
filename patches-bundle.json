@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-17T07:53:18",
-  "description": "## [1.1.1-dev.4](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.3...v1.1.1-dev.4) (2026-06-17)\n\n### 🐛 Bug Fixes\n\n* **instagram:** wire save-deleted-messages hook to correct v426 parser method ([f85a77d](https://github.com/vishnuprasad0/piko/commit/f85a77d9279193cbe77ebc2eccd9ab4c34012268))",
-  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.4/patches-1.1.1-dev.4.mpp",
-  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.4/patches-1.1.1-dev.4.mpp.asc",
-  "version": "1.1.1-dev.4"
+  "created_at": "2026-06-17T09:35:20",
+  "description": "## [1.1.1-dev.5](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.4...v1.1.1-dev.5) (2026-06-17)\n\n### 🐛 Bug Fixes\n\n* **instagram:** hook MQTT path for save-deleted-messages via LX/0gF;.A0P ([83a1141](https://github.com/vishnuprasad0/piko/commit/83a1141d3016e4a33916220169ba66c1bd9b6057))",
+  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.5/patches-1.1.1-dev.5.mpp",
+  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.5/patches-1.1.1-dev.5.mpp.asc",
+  "version": "1.1.1-dev.5"
 }
