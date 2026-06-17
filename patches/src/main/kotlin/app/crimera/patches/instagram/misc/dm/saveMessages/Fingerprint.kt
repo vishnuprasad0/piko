@@ -42,6 +42,25 @@ internal object DirectItemFieldParserFingerprint : Fingerprint(
 )
 
 /**
+ * Targets LX/0gF;.A0P in v426 classes12.dex.
+ *
+ * A0P is the post-processing step called after EVERY DirectItem is assembled
+ * from an MSys/MQTT sync delta. It is NOT called by the REST/JSON parseFromJson
+ * path — those are two separate code paths. Hooking A0P here covers real-time
+ * MQTT delivery (which parseFromJson never sees).
+ *
+ * LX/0gF; extends LX/9ZA; (DirectItem) with no additional instance fields;
+ * all data fields (A13=item_id, A1Y=hide_in_thread, etc.) live on LX/9ZA;.
+ * SavedMessagesHook.onMessageReceived walks the superclass chain to find them.
+ *
+ * The two anchor strings are uniquely co-located in A0P only in classes12.dex.
+ * returnType not specified to avoid hardcoding the obfuscated class name.
+ */
+internal object DirectItemPostprocessFingerprint : Fingerprint(
+    strings = listOf("DirectMessage.postprocess.%s", "Encountered DirectMessage with null type"),
+)
+
+/**
  * Targets the TextWatcher attached to the DM compose bar EditText.
  * Same class as DisableTypingStatusPatch's OnTextChangedFingerprint — we
  * duplicate the fingerprint here so we can access classDef independently

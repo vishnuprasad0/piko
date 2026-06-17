@@ -50,11 +50,25 @@ val saveDeletedMessagesPatch =
                 )
             }
 
-            // --- Hook 2: Unsend detection is handled in Hook 1 ---
-            // parseFromJson fires for BOTH initial REST loads and realtime MQTT unsend
-            // deltas (the same parser re-runs when hide_in_thread flips to true).
-            // onMessageReceived reads field A1Y:Z (hide_in_thread) on the returned item
-            // and marks the message deleted in the DB when true.
+            // --- Hook 2: Capture messages delivered via MQTT/MSys real-time sync ---
+            // parseFromJson (Hook 1) only fires for REST/JSON loads (thread history).
+            // Real-time messages arrive via MQTT Thrift encoding and never touch parseFromJson.
+            // A0P is the universal post-processing step called after every MQTT DirectItem is
+            // assembled from a sync delta; hooking its last success return covers that path.
+            // LX/0gF; extends LX/9ZA; (no new fields), so the same onMessageReceived handler
+            // works for both — it walks the superclass chain to find the LX/9ZA; fields.
+            DirectItemPostprocessFingerprint.method.apply {
+                val returnObjInstruction = instructions.last { it.opcode == Opcode.RETURN_OBJECT }
+                val returnObjIndex = returnObjInstruction.location.index
+                val itemRegister = returnObjInstruction.registersUsed[0]
+
+                addInstructions(
+                    returnObjIndex,
+                    """
+                    invoke-static {v$itemRegister}, $HOOK_CLASS->onMessageReceived(Ljava/lang/Object;)V
+                    """.trimIndent(),
+                )
+            }
 
             // --- Hook 3: Inject "View deleted messages" button into compose bar ---
             // onTextChanged fires every time the user types in the DM input.

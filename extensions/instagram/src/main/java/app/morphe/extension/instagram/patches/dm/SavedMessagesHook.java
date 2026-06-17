@@ -129,16 +129,22 @@ public class SavedMessagesHook {
         }
     }
 
-    /** Read a boolean field by exact name, tolerating Boolean/boolean. Returns false if absent. */
+    /** Read a boolean field by exact name, tolerating Boolean/boolean. Walks the superclass chain. */
     private static boolean readBool(Object obj, String fieldName) {
-        try {
-            Field f = obj.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            Object v = f.get(obj);
-            return v instanceof Boolean && (Boolean) v;
-        } catch (Exception ignored) {
-            return false;
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            try {
+                Field f = cls.getDeclaredField(fieldName);
+                f.setAccessible(true);
+                Object v = f.get(obj);
+                return v instanceof Boolean && (Boolean) v;
+            } catch (NoSuchFieldException ignored) {
+                cls = cls.getSuperclass();
+            } catch (Exception e) {
+                return false;
+            }
         }
+        return false;
     }
 
     private static final java.util.Set<String> DUMPED_CLASSES =
@@ -146,9 +152,9 @@ public class SavedMessagesHook {
 
     /**
      * Logs the class name and every declared field (name = value) the first time an
-     * unmappable item of a given class is seen. Use the logcat output (tag: piko) to
-     * identify the obfuscated item_id / hide_in_thread / sender / text fields for this
-     * Instagram version, then wire them into the reflection above.
+     * unmappable item of a given class is seen — walks the full superclass chain so
+     * fields declared on parent classes (e.g. LX/9ZA; when the runtime type is LX/0gF;)
+     * are included in the dump.
      */
     private static void dumpUnknownItemOnce(Object item) {
         try {
@@ -156,14 +162,19 @@ public class SavedMessagesHook {
             String cls = item.getClass().getName();
             if (!DUMPED_CLASSES.add(cls)) return;
             StringBuilder sb = new StringBuilder("SavedMessagesHook ObjectBrowser dump for ").append(cls).append(":\n");
-            for (Field f : item.getClass().getDeclaredFields()) {
-                f.setAccessible(true);
-                Object v;
-                try { v = f.get(item); } catch (Exception e) { v = "<inaccessible>"; }
-                String vs = v == null ? "null" : v.toString();
-                if (vs.length() > 80) vs = vs.substring(0, 80) + "…";
-                sb.append("  ").append(f.getType().getSimpleName()).append(' ')
-                  .append(f.getName()).append(" = ").append(vs).append('\n');
+            Class<?> c = item.getClass();
+            while (c != null && c != Object.class) {
+                if (c != item.getClass()) sb.append("  [inherited from ").append(c.getName()).append("]\n");
+                for (Field f : c.getDeclaredFields()) {
+                    f.setAccessible(true);
+                    Object v;
+                    try { v = f.get(item); } catch (Exception e) { v = "<inaccessible>"; }
+                    String vs = v == null ? "null" : v.toString();
+                    if (vs.length() > 80) vs = vs.substring(0, 80) + "…";
+                    sb.append("  ").append(f.getType().getSimpleName()).append(' ')
+                      .append(f.getName()).append(" = ").append(vs).append('\n');
+                }
+                c = c.getSuperclass();
             }
             String out = sb.toString();
             Logger.printException(() -> out);
@@ -301,23 +312,16 @@ public class SavedMessagesHook {
     // -------------------------------------------------------------------------
 
     private static EditText findEditText(Object obj) {
-        for (Field f : obj.getClass().getDeclaredFields()) {
-            f.setAccessible(true);
-            try {
-                Object val = f.get(obj);
-                if (val instanceof EditText) return (EditText) val;
-            } catch (Exception ignored) {}
-        }
-        // Also check superclass fields
-        Class<?> superCls = obj.getClass().getSuperclass();
-        if (superCls != null) {
-            for (Field f : superCls.getDeclaredFields()) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            for (Field f : cls.getDeclaredFields()) {
                 f.setAccessible(true);
                 try {
                     Object val = f.get(obj);
                     if (val instanceof EditText) return (EditText) val;
                 } catch (Exception ignored) {}
             }
+            cls = cls.getSuperclass();
         }
         return null;
     }
@@ -343,24 +347,26 @@ public class SavedMessagesHook {
     }
 
     /**
-     * Try a field by name first, then invoke a zero-arg getter method.
+     * Try a field by name first (walking superclass chain), then invoke a zero-arg getter method.
      * Used for message-id which in v408+ is behind getter A0l() not a direct field.
      */
     private static String reflectStringOrInvoke(Object obj, String fieldName, String methodName) {
-        // 1. Try field by name
-        try {
-            Field f = obj.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            Object v = f.get(obj);
-            if (v instanceof String) return (String) v;
-        } catch (Exception ignored) {}
-        // 2. Try getter method
-        try {
-            java.lang.reflect.Method m = obj.getClass().getDeclaredMethod(methodName);
-            m.setAccessible(true);
-            Object v = m.invoke(obj);
-            if (v instanceof String) return (String) v;
-        } catch (Exception ignored) {}
+        Object v = getFieldValue(obj, fieldName);
+        if (v instanceof String) return (String) v;
+        // Try getter method (walk superclass chain for method too)
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            try {
+                java.lang.reflect.Method m = cls.getDeclaredMethod(methodName);
+                m.setAccessible(true);
+                Object r = m.invoke(obj);
+                if (r instanceof String) return (String) r;
+            } catch (NoSuchMethodException ignored) {
+                cls = cls.getSuperclass();
+            } catch (Exception e) {
+                return null;
+            }
+        }
         return null;
     }
 
@@ -368,59 +374,65 @@ public class SavedMessagesHook {
      * Extract the thread-id string from the DirectItem.
      * v426: thread_key stored in field A0W (DirectThreadKey), threadId is A00:String.
      * v408: thread_key in field A16/A18/A15, threadId is A00:String.
+     * Uses getFieldValue to walk the superclass chain (needed when item is LX/0gF;).
      */
     private static String reflectThreadIdFromItem(Object item) {
-        // Try known sub-object field names for DirectThreadKey (A0W=v426, A16/A18/A15=v408)
         for (String keyField : new String[]{"A0W", "A16", "A18", "A15"}) {
-            try {
-                Field f = item.getClass().getDeclaredField(keyField);
-                f.setAccessible(true);
-                Object key = f.get(item);
-                if (key == null) continue;
-                // DirectThreadKey.A00 is the thread-id string
-                try {
-                    Field idField = key.getClass().getDeclaredField("A00");
-                    idField.setAccessible(true);
-                    Object v = idField.get(key);
-                    if (v instanceof String && !((String) v).isEmpty()) return (String) v;
-                } catch (Exception ignored) {}
-            } catch (Exception ignored) {}
+            Object key = getFieldValue(item, keyField);
+            if (key == null) continue;
+            Object v = getFieldValue(key, "A00");
+            if (v instanceof String && !((String) v).isEmpty()) return (String) v;
         }
         return null;
     }
 
     private static Object reflectRaw(Object obj, String jsonKey, String obfName) {
-        try {
-            Field f = obj.getClass().getDeclaredField(jsonKey);
-            f.setAccessible(true);
-            return f.get(obj);
-        } catch (Exception e1) {
-            try {
-                Field f = obj.getClass().getDeclaredField(obfName);
-                f.setAccessible(true);
-                return f.get(obj);
-            } catch (Exception e2) {
-                return null;
-            }
-        }
+        Object v = getFieldValue(obj, jsonKey);
+        if (v != null) return v;
+        return getFieldValue(obj, obfName);
     }
 
-    private static Object findFieldByType(Object obj, String typeNameHint) {
-        for (Field f : obj.getClass().getDeclaredFields()) {
-            if (f.getType().getSimpleName().toLowerCase().contains(typeNameHint.toLowerCase())) {
+    /** Walk the full superclass chain to find and read a field by name. */
+    private static Object getFieldValue(Object obj, String fieldName) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            try {
+                Field f = cls.getDeclaredField(fieldName);
                 f.setAccessible(true);
-                try { return f.get(obj); } catch (Exception ignored) {}
+                return f.get(obj);
+            } catch (NoSuchFieldException ignored) {
+                cls = cls.getSuperclass();
+            } catch (Exception e) {
+                return null;
             }
         }
         return null;
     }
 
-    private static Object findFieldByNameHint(Object obj, String nameHint) {
-        for (Field f : obj.getClass().getDeclaredFields()) {
-            if (f.getName().toLowerCase().contains(nameHint.toLowerCase())) {
-                f.setAccessible(true);
-                try { return f.get(obj); } catch (Exception ignored) {}
+    private static Object findFieldByType(Object obj, String typeNameHint) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            for (Field f : cls.getDeclaredFields()) {
+                if (f.getType().getSimpleName().toLowerCase().contains(typeNameHint.toLowerCase())) {
+                    f.setAccessible(true);
+                    try { return f.get(obj); } catch (Exception ignored) {}
+                }
             }
+            cls = cls.getSuperclass();
+        }
+        return null;
+    }
+
+    private static Object findFieldByNameHint(Object obj, String nameHint) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            for (Field f : cls.getDeclaredFields()) {
+                if (f.getName().toLowerCase().contains(nameHint.toLowerCase())) {
+                    f.setAccessible(true);
+                    try { return f.get(obj); } catch (Exception ignored) {}
+                }
+            }
+            cls = cls.getSuperclass();
         }
         return null;
     }
