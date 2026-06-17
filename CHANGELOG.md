@@ -1,3 +1,9 @@
+## [1.1.1-dev.1](https://github.com/vishnuprasad0/piko/compare/v1.1.0...v1.1.1-dev.1) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **instagram:** add runtime diagnostics for save-deleted-messages hook ([196b47b](https://github.com/vishnuprasad0/piko/commit/196b47b12b53985570cb914da28ea0a1f2ea2631))
+
 ## [1.1.0](https://github.com/vishnuprasad0/piko/compare/v1.0.1...v1.1.0) (2026-06-16)
 
 ### ✨ New Features
