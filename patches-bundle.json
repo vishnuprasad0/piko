@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-17T06:15:56",
-  "description": "## [1.1.1-dev.2](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.1...v1.1.1-dev.2) (2026-06-17)\n\n### 🐛 Bug Fixes\n\n* **instagram:** sharpen unsend-detection fingerprint and field resolution ([2ca490c](https://github.com/vishnuprasad0/piko/commit/2ca490c90ae203a8fe178579ba66281d9a91406f))",
-  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.2/patches-1.1.1-dev.2.mpp",
-  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.2/patches-1.1.1-dev.2.mpp.asc",
-  "version": "1.1.1-dev.2"
+  "created_at": "2026-06-17T06:48:38",
+  "description": "## [1.1.1-dev.3](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.2...v1.1.1-dev.3) (2026-06-17)\n\n### 🐛 Bug Fixes\n\n* **instagram:** revert hide_in_thread fingerprint anchor — absent in v426 dex ([adb7707](https://github.com/vishnuprasad0/piko/commit/adb770799f92ada83ec682d143edc124416c5bb3))",
+  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.3/patches-1.1.1-dev.3.mpp",
+  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.3/patches-1.1.1-dev.3.mpp.asc",
+  "version": "1.1.1-dev.3"
 }
