@@ -1,3 +1,9 @@
+## [1.1.1-dev.6](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.5...v1.1.1-dev.6) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **instagram:** use move-object/from16 before invoke-static in A0P hook ([3eaa13c](https://github.com/vishnuprasad0/piko/commit/3eaa13c4991dfa544bb8e1ad858678799283c253))
+
 ## [1.1.1-dev.5](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.4...v1.1.1-dev.5) (2026-06-17)
 
 ### 🐛 Bug Fixes
