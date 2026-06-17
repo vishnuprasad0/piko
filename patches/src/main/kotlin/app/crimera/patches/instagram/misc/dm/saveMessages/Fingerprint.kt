@@ -9,35 +9,36 @@ package app.crimera.patches.instagram.misc.dm.saveMessages
 import app.morphe.patcher.Fingerprint
 
 /**
- * Targets Instagram's DirectThreadItem JSON parser — static analysis confirmed
- * method: LX/5jI;->A01(LX/5Oo;Lcom/instagram/model/direct/DirectThreadKey;Z)LX/5jI;
- * (v408 reference APK; equivalent class in v426 is LX/9ZA with same method structure).
+ * Targets LX/0gL;.A00(LX/R0r;LX/9ZA;Ljava/lang/String;)Z in v426 classes12.dex.
  *
- * Anchor strings (v408 reference):
- *   "item_id", "user_id", "item_type" — inline JSON key comparisons in the parser dispatch.
- *   NOTE: "hide_in_thread" is NOT a reliable anchor — in v426 it is absent as an
- *   inline const-string (hash-table dispatch or different dex distribution).
- *   These three strings co-occur in 12 dex files but Morphe selects the best candidate;
- *   the returnType filter eliminates the void-return serialiser LX/8lD;->A00.
+ * This is the per-field JSON dispatch helper: called once per JSON key during
+ * DirectItem deserialization. It compares the current key against known field
+ * names and writes matching values into the DirectItem (LX/9ZA;).
  *
- * TODO (needs v426 dex grep): find a UNIQUE string constant that is:
- *   - present as const-string in the same method as "item_id" in v426
- *   - absent from all other classes → replace "user_id" with that unique anchor
+ * The two anchor strings are uniquely co-located ONLY in this method across all
+ * 19 dex files — "hide_in_thread" appears only in classes12.dex with "item_id".
+ * returnType = "Z" (boolean) distinguishes it from the void serializer
+ * LX/0gG;.A00(LX/R1V;LX/0gF;Z)V which also contains both strings.
  *
- * hideInThread field on the returned domain object:
- *   v408 (LX/5jI;):  field A2V:Z
- *   v426 (LX/9ZA;):  field A1Y:Z   ← from prior RE session, needs ObjectBrowser confirm
+ * This fingerprint is NOT hooked directly. It is used only to locate the
+ * containing class LX/0gL;, from which parseFromJson is retrieved and hooked.
  *
- * Realtime unsend flow (confirmed from smali):
- *   iris MQTT delta → 5jI.A01 (JSON parse, sets hideInThread) → Oq2.A00 merge
- *   → L9t (replace_message wrapper) → Qjw.GFS render dispatch
+ * v426 field mapping (confirmed from dexdump classes12.dex):
+ *   item_id        → LX/9ZA;.A13:Ljava/lang/String;
+ *   hide_in_thread → LX/9ZA;.A1Y:Z
+ *   user_id        → LX/9ZA;.A1M:Ljava/lang/String;
+ *   timestamp      → LX/9ZA;.A1J:Ljava/lang/String;  (microseconds string)
+ *   text           → LX/9ZA;.A1I:Ljava/lang/String;
+ *   item_type      → LX/9ZA;.A0Y:LX/8ot; (enum — use toString())
+ *   thread_key     → LX/9ZA;.A0W:Lcom/instagram/model/direct/DirectThreadKey;
+ *   DirectThreadKey.threadId → .A00:Ljava/lang/String; (same as v408)
  *
- * The parse hook (Hook 1) therefore fires for BOTH initial loads AND realtime unsends.
- * No separate removal hook is needed for the regular-DM path.
+ * v408 field mapping (for fallback):
+ *   DirectItem: LX/5jI;, hideInThread: A2V:Z, item_id: getter A0l(), threadKey: A16/A18
  */
-internal object DirectMessageItemParseFingerprint : Fingerprint(
-    strings = listOf("item_id", "user_id", "item_type"),
-    returnType = "Ljava/lang/Object;",
+internal object DirectItemFieldParserFingerprint : Fingerprint(
+    strings = listOf("item_id", "hide_in_thread"),
+    returnType = "Z",
 )
 
 /**

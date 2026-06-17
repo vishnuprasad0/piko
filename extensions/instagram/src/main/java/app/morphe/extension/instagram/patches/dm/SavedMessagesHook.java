@@ -21,7 +21,6 @@ import java.lang.reflect.Field;
 
 import app.morphe.extension.crimera.PikoUtils;
 import app.morphe.extension.instagram.db.PikoMessageDb;
-import app.morphe.extension.instagram.entity.Entity;
 import app.morphe.extension.instagram.utils.Pref;
 import app.morphe.extension.shared.Logger;
 
@@ -46,41 +45,53 @@ public class SavedMessagesHook {
             Logger.printException(() -> "SavedMessagesHook ENTER item=" + dcls);
             dumpUnknownItemOnce(item);
 
-            Entity msg = new Entity(item);
-
-            // messageId: JSON key "item_id" maps to server_item_id accessor A0l() in v408/v426.
-            // threadId: held in a DirectThreadKey sub-object; the key's String field is A00.
-            String messageId  = reflectStringOrInvoke(item, "item_id", "A0l");
+            // v426 field names (confirmed from dexdump classes12.dex LX/0gL;.A00):
+            //   item_id        → A13:String
+            //   user_id        → A1M:String (sender ID)
+            //   item_type      → A0Y:enum (toString() for value)
+            //   timestamp      → A1J:String (microseconds)
+            //   text           → A1I:String
+            //   thread_key     → A0W:DirectThreadKey, .A00:String
+            // v408 field names (fallback):
+            //   item_id        → getter A0l(), thread_key → A16/A18
+            String messageId  = reflectString(item, "item_id", "A13");
+            if (messageId == null) messageId = reflectStringOrInvoke(item, "item_id", "A0l");
             String threadId   = reflectThreadIdFromItem(item);
-            String senderId   = null;
+            String senderId   = reflectString(item, "user_id", "A1M");
             String senderUser = null;
             String content    = null;
-            String type       = reflectString(item, "item_type", "A0R");
+            String type       = null;
             long   timestamp  = System.currentTimeMillis();
 
-            // Try to get sender info from nested object
+            // item_type: v426 stores as enum (A0Y), v408 as String (A0R)
             try {
-                Object senderObj = findFieldByType(item, "user");
-                if (senderObj != null) {
-                    senderId   = reflectString(senderObj, "pk",       "A00");
-                    senderUser = reflectString(senderObj, "username", "A01");
+                Object typeObj = reflectRaw(item, "item_type", "A0Y");
+                if (typeObj != null) type = typeObj.toString();
+            } catch (Exception ignored) {}
+            if (type == null) type = reflectString(item, "item_type", "A0R");
+
+            // timestamp: v426 stores as String microseconds (A1J), v408 as Long (A03)
+            try {
+                String tsStr = reflectString(item, "timestamp", "A1J");
+                if (tsStr != null && !tsStr.isEmpty()) {
+                    timestamp = Long.parseLong(tsStr) / 1000L; // µs → ms
+                } else {
+                    Object ts = reflectRaw(item, "timestamp", "A03");
+                    if (ts instanceof Long)   timestamp = (Long) ts;
+                    if (ts instanceof Number) timestamp = ((Number) ts).longValue();
                 }
             } catch (Exception ignored) {}
 
-            // Try to get timestamp
+            // text content: v426 stores directly on item (A1I), v408 in nested text object
             try {
-                Object ts = reflectRaw(item, "timestamp", "A03");
-                if (ts instanceof Long)   timestamp = (Long) ts;
-                if (ts instanceof Number) timestamp = ((Number) ts).longValue();
-            } catch (Exception ignored) {}
-
-            // Try to get text content from nested text entity
-            try {
-                Object textObj = findFieldByNameHint(item, "text");
-                if (textObj instanceof String) {
-                    content = (String) textObj;
-                } else if (textObj != null) {
-                    content = reflectString(textObj, "text", "A00");
+                content = reflectString(item, "text", "A1I");
+                if (content == null) {
+                    Object textObj = findFieldByNameHint(item, "text");
+                    if (textObj instanceof String) {
+                        content = (String) textObj;
+                    } else if (textObj != null) {
+                        content = reflectString(textObj, "text", "A00");
+                    }
                 }
             } catch (Exception ignored) {}
 
@@ -355,12 +366,12 @@ public class SavedMessagesHook {
 
     /**
      * Extract the thread-id string from the DirectItem.
-     * In v408/v426 the thread is stored in a DirectThreadKey sub-object (field A16 / A18).
-     * The key's String id field is named A00. Fall back to scanning String fields.
+     * v426: thread_key stored in field A0W (DirectThreadKey), threadId is A00:String.
+     * v408: thread_key in field A16/A18/A15, threadId is A00:String.
      */
     private static String reflectThreadIdFromItem(Object item) {
-        // Try known sub-object field names for DirectThreadKey
-        for (String keyField : new String[]{"A16", "A18", "A15"}) {
+        // Try known sub-object field names for DirectThreadKey (A0W=v426, A16/A18/A15=v408)
+        for (String keyField : new String[]{"A0W", "A16", "A18", "A15"}) {
             try {
                 Field f = item.getClass().getDeclaredField(keyField);
                 f.setAccessible(true);

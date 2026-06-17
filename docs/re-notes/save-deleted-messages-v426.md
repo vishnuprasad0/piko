@@ -4,29 +4,27 @@ Reverse-engineering notes for the `saveDeletedMessagesPatch`
 (`patches/.../instagram/misc/dm/saveMessages/`). Captured by decompiling
 `Instagram-v426.0.0.37.68-patches-v3.4.0.apk` with baksmali 2.5.2.
 
-> **Status:** the patch currently fails at patch-apply time. Root cause is
-> documented below. Functionally-correct hooks still require **on-device
-> ObjectBrowser verification** (see CLAUDE.md "RE Expert Workflow" step 3) —
-> static analysis alone cannot confirm obfuscated field names or the register
-> that holds each target object.
+> **Status:** v1.1.1-dev.3 patch applies but hook never fires — fingerprint
+> matched wrong method. Root cause and fix documented below. All v426 field
+> names now confirmed from dexdump; hook wired to `parseFromJson` via classDef
+> navigation. Needs rebuild + retest.
 
 ---
 
-## TL;DR — why the patch crashes
+## TL;DR — why the hook never fired (v1.1.1-dev.3)
 
-`DirectMessageItemRemovedFingerprint` matches on `strings = listOf("item_removed")`.
-**That string does not exist anywhere in IG v426** (verified by grepping all 19
-`classes*.dex`). A `Fingerprint` with an impossible string can never match, so
-Morphe throws:
+The old `DirectMessageItemParseFingerprint` used `strings = listOf("item_id", "user_id", "item_type")` + `returnType = "Ljava/lang/Object;"`. This matched 12 dex files — Morphe selected the wrong method. The selected method never ran during DM receive, so no logcat output appeared.
 
-```
-app.morphe.patcher.patch.PatchException: Failed to match the fingerprint:
-  ...saveMessages.DirectMessageItemRemovedFingerprint
-  at ...SaveDeletedMessagesPatch.kt:54
-```
+**Root cause:** In v426, IG refactored DM JSON parsing into a delegation pattern:
+- `LX/0gL;.A00(LX/R0r;LX/9ZA;Ljava/lang/String;)Z` — per-field dispatcher (returns Z, not Object)
+- `LX/0gL;.parseFromJson(LX/R0r;)LX/9ZA;` — top-level parser (returns LX/9ZA;)
+- `LX/0gL;.unsafeParseFromJson(LX/R0r;)Ljava/lang/Object;` — bridge (returns Object)
 
-A single unmatched fingerprint aborts the **entire** patch session (all other
-patches included), which is why the user could not patch at all.
+`returnType = "Ljava/lang/Object;"` excluded `A00` (returns Z), so the fingerprint landed on a random unrelated method in one of the other 11 matching dex files.
+
+**Fix applied (v1.1.1-dev.4):**
+- New `DirectItemFieldParserFingerprint`: `strings = listOf("item_id", "hide_in_thread"), returnType = "Z"` — uniquely matches `LX/0gL;.A00` in classes12.dex (only dex with both strings co-located in same method)
+- Patch navigates to `parseFromJson` via `classDef.methods.first { it.name == "parseFromJson" }` — hooks the fully-populated return
 
 ---
 
@@ -128,11 +126,16 @@ Class names differ from v426 but the structure is equivalent.
 | Item | v408 | v426 (from RE notes) |
 |------|------|----------------------|
 | DirectItem class | `LX/5jI;` | `LX/9ZA;` |
-| Parser method | `A01(LX/5Oo;Lcom/instagram/model/direct/DirectThreadKey;Z)LX/5jI;` | equivalent |
-| `hideInThread` field | `A2V:Z` | `A1Y:Z` |
-| server_item_id getter | `A0l()Ljava/lang/String;` | TBD (ObjectBrowser) |
-| DirectThreadKey field | `A16:Lcom/instagram/model/direct/DirectThreadKey;` | TBD |
-| DirectThreadKey.threadId | `A00:Ljava/lang/String;` | TBD |
+| Parser method | `A01(LX/5Oo;Lcom/instagram/model/direct/DirectThreadKey;Z)LX/5jI;` | `LX/0gL;.parseFromJson(LX/R0r;)LX/9ZA;` |
+| Per-field dispatcher | — | `LX/0gL;.A00(LX/R0r;LX/9ZA;Ljava/lang/String;)Z` |
+| `hideInThread` field | `A2V:Z` | `A1Y:Z` ✓ confirmed |
+| `item_id` field | getter `A0l()` | `A13:Ljava/lang/String;` ✓ confirmed |
+| `user_id` (sender) field | — | `A1M:Ljava/lang/String;` ✓ confirmed |
+| `timestamp` field | Long | `A1J:Ljava/lang/String;` (µs string) ✓ confirmed |
+| `text` content field | nested object | `A1I:Ljava/lang/String;` ✓ confirmed |
+| `item_type` field | `A0R:String` | `A0Y:LX/8ot;` (enum) ✓ confirmed |
+| `thread_key` field | `A16:DirectThreadKey` | `A0W:Lcom/instagram/model/direct/DirectThreadKey;` ✓ confirmed |
+| DirectThreadKey.threadId | `A00:Ljava/lang/String;` | `A00:Ljava/lang/String;` ✓ same |
 
 ### Realtime unsend call chain (confirmed v408)
 
