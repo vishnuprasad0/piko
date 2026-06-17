@@ -1,3 +1,9 @@
+## [1.1.1-dev.2](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.1...v1.1.1-dev.2) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **instagram:** sharpen unsend-detection fingerprint and field resolution ([2ca490c](https://github.com/vishnuprasad0/piko/commit/2ca490c90ae203a8fe178579ba66281d9a91406f))
+
 ## [1.1.1-dev.1](https://github.com/vishnuprasad0/piko/compare/v1.1.0...v1.1.1-dev.1) (2026-06-17)
 
 ### 🐛 Bug Fixes
