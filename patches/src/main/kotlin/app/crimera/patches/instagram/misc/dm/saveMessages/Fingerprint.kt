@@ -9,27 +9,34 @@ package app.crimera.patches.instagram.misc.dm.saveMessages
 import app.morphe.patcher.Fingerprint
 
 /**
- * Targets Instagram's DirectThreadItem JSON parser.
- * "item_id", "user_id", "item_type" are literal field-name constants in the
- * JSONObject.getString()/optString() calls inside this method — same approach
- * as EphemeralMediaJsonParserFingerprint uses "url_expire_at_secs" etc.
+ * Targets Instagram's DirectThreadItem JSON parser — static analysis confirmed
+ * method: LX/5jI;->A01(LX/5Oo;Lcom/instagram/model/direct/DirectThreadKey;Z)LX/5jI;
+ * (v408 reference APK; equivalent class in v426 is LX/9ZA with same method structure).
+ *
+ * Anchor strings:
+ *   "hide_in_thread" — JSON key for the unsend/hidden flag; present in ONLY this method
+ *                      and the serialiser LX/8lD;->A00 (void return — excluded by returnType).
+ *   "item_id", "item_type" — additional discriminators; together with hide_in_thread they
+ *                            uniquely identify this parser across all dex files.
+ *
+ * returnType = "Ljava/lang/Object;" keeps Morphe's "any non-void object return" semantics,
+ * which correctly excludes the void-return serialiser LX/8lD;->A00 that has the same strings.
+ *
+ * hideInThread field on the returned domain object:
+ *   v408 (LX/5jI;):  field A2V:Z
+ *   v426 (LX/9ZA;):  field A1Y:Z   ← confirmed from v426 RE session
+ *
+ * Realtime unsend flow (confirmed from smali):
+ *   iris MQTT delta → 5jI.A01 (JSON parse, sets hideInThread) → Oq2.A00 merge
+ *   → L9t (replace_message wrapper) → Qjw.GFS render dispatch
+ *
+ * The parse hook (Hook 1) therefore fires for BOTH initial loads AND realtime unsends.
+ * No separate removal hook is needed for the regular-DM path.
  */
 internal object DirectMessageItemParseFingerprint : Fingerprint(
-    strings = listOf("item_id", "user_id", "item_type"),
+    strings = listOf("hide_in_thread", "item_id", "item_type"),
     returnType = "Ljava/lang/Object;",
 )
-
-// NOTE (v426 RE): real-time unsend is NOT a separate (threadId, itemId) callback.
-// On v426 the const-string "item_removed" does not exist anywhere in the APK.
-// An incoming unsend is represented by the DirectItem model carrying
-// hide_in_thread = true (model class LX/9ZA, field A1Y:Z; serialized as the
-// JSON key "hide_in_thread", sibling flag "is_deleted_for_self").
-// Detecting deletion therefore belongs in the parse hook (Hook 1), but mapping
-// the obfuscated boolean field on the *captured* parse object requires runtime
-// ObjectBrowser inspection on a live patched build (see docs/re-notes). Until
-// that field is confirmed, the dedicated removal hook is omitted so the patch
-// applies cleanly. The extension's onMessageDeleted(...) is retained for when
-// the runtime field/handler is identified.
 
 /**
  * Targets the TextWatcher attached to the DM compose bar EditText.

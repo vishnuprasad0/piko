@@ -48,12 +48,14 @@ public class SavedMessagesHook {
 
             Entity msg = new Entity(item);
 
-            String messageId  = reflectString(item, "item_id",   "A00");
-            String threadId   = reflectString(item, "thread_id", "A05");
+            // messageId: JSON key "item_id" maps to server_item_id accessor A0l() in v408/v426.
+            // threadId: held in a DirectThreadKey sub-object; the key's String field is A00.
+            String messageId  = reflectStringOrInvoke(item, "item_id", "A0l");
+            String threadId   = reflectThreadIdFromItem(item);
             String senderId   = null;
             String senderUser = null;
             String content    = null;
-            String type       = reflectString(item, "item_type", "A01");
+            String type       = reflectString(item, "item_type", "A0R");
             long   timestamp  = System.currentTimeMillis();
 
             // Try to get sender info from nested object
@@ -91,13 +93,16 @@ public class SavedMessagesHook {
 
             PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
 
-            // Deletion (unsend) detection. The realtime protobuf model
-            // com.instagram.direct.model.protobufmodel.Message exposes a STABLE,
-            // non-obfuscated boolean field "hideInThread_"; the JSON/graphql item
-            // uses key "hide_in_thread" / "is_deleted_for_self". Try each.
-            boolean deleted = readBool(item, "hideInThread_")
-                || readBool(item, "hide_in_thread")
-                || readBool(item, "is_deleted_for_self");
+            // Deletion (unsend) detection.
+            // hideInThread field on the domain DirectItem object is ProGuard-obfuscated:
+            //   v426 (LX/9ZA): A1Y:Z  ← confirmed by static RE of v426 smali
+            //   v408 (LX/5jI): A2V:Z  ← confirmed from reference APK analysis
+            // Try obfuscated names first (fast path), then fall back to the stable
+            // protobuf field name "hideInThread_" in case a future build de-obfuscates.
+            boolean deleted = readBool(item, "A1Y")          // v426
+                || readBool(item, "A2V")                     // v408 / reference APK
+                || readBool(item, "hideInThread_")           // proto-model stable name
+                || readBool(item, "is_deleted_for_self");    // sibling flag
 
             if (deleted) {
                 // Capture content first (so the row exists), then mark + notify.
@@ -324,6 +329,53 @@ public class SavedMessagesHook {
     private static String reflectString(Object obj, String jsonKey, String obfName) {
         Object val = reflectRaw(obj, jsonKey, obfName);
         return val instanceof String ? (String) val : null;
+    }
+
+    /**
+     * Try a field by name first, then invoke a zero-arg getter method.
+     * Used for message-id which in v408+ is behind getter A0l() not a direct field.
+     */
+    private static String reflectStringOrInvoke(Object obj, String fieldName, String methodName) {
+        // 1. Try field by name
+        try {
+            Field f = obj.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            Object v = f.get(obj);
+            if (v instanceof String) return (String) v;
+        } catch (Exception ignored) {}
+        // 2. Try getter method
+        try {
+            java.lang.reflect.Method m = obj.getClass().getDeclaredMethod(methodName);
+            m.setAccessible(true);
+            Object v = m.invoke(obj);
+            if (v instanceof String) return (String) v;
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    /**
+     * Extract the thread-id string from the DirectItem.
+     * In v408/v426 the thread is stored in a DirectThreadKey sub-object (field A16 / A18).
+     * The key's String id field is named A00. Fall back to scanning String fields.
+     */
+    private static String reflectThreadIdFromItem(Object item) {
+        // Try known sub-object field names for DirectThreadKey
+        for (String keyField : new String[]{"A16", "A18", "A15"}) {
+            try {
+                Field f = item.getClass().getDeclaredField(keyField);
+                f.setAccessible(true);
+                Object key = f.get(item);
+                if (key == null) continue;
+                // DirectThreadKey.A00 is the thread-id string
+                try {
+                    Field idField = key.getClass().getDeclaredField("A00");
+                    idField.setAccessible(true);
+                    Object v = idField.get(key);
+                    if (v instanceof String && !((String) v).isEmpty()) return (String) v;
+                } catch (Exception ignored) {}
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     private static Object reflectRaw(Object obj, String jsonKey, String obfName) {

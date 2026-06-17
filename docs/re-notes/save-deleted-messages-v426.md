@@ -119,17 +119,71 @@ disassembly of `DirectUnsendMessageInteractor` (`LX/YvN;`).
 
 ---
 
+## v408 reference-APK static analysis (additional findings)
+
+Class names differ from v426 but the structure is equivalent.
+
+### JSON parser (Hook 1 target)
+
+| Item | v408 | v426 (from RE notes) |
+|------|------|----------------------|
+| DirectItem class | `LX/5jI;` | `LX/9ZA;` |
+| Parser method | `A01(LX/5Oo;Lcom/instagram/model/direct/DirectThreadKey;Z)LX/5jI;` | equivalent |
+| `hideInThread` field | `A2V:Z` | `A1Y:Z` |
+| server_item_id getter | `A0l()Ljava/lang/String;` | TBD (ObjectBrowser) |
+| DirectThreadKey field | `A16:Lcom/instagram/model/direct/DirectThreadKey;` | TBD |
+| DirectThreadKey.threadId | `A00:Ljava/lang/String;` | TBD |
+
+### Realtime unsend call chain (confirmed v408)
+
+```
+iris MQTT JSON delta (replace_message)
+  └─ 5jI.A01(5Oo, DirectThreadKey, Z)     ← our Hook 1 intercept point
+        ↓ sets A2V:Z = true (hideInThread)
+  └─ Ukf.invoke(5jI)                       ← coroutine continuation
+        ↓ creates L9t (replace_message delta wrapper)
+  └─ Qjw.GFS                               ← render dispatch
+        ↓ dispatches "replace_message" vs "remove_message" vs "noop"
+```
+
+**Key insight**: Hook 1 on `5jI.A01` fires for BOTH initial REST responses AND
+realtime unsend deltas. No separate removal hook is needed for the regular-DM path.
+
+### Fingerprint fix applied
+
+Old: `strings = listOf("item_id", "user_id", "item_type")` — co-occurs in 12/19 dex files.  
+New: `strings = listOf("hide_in_thread", "item_id", "item_type")` — narrows to **2 methods**:
+- `LX/5jI;->A01` (returns `LX/5jI;` — matched by `returnType = "Ljava/lang/Object;"`)
+- `LX/8lD;->A00` (returns `V` — excluded by `returnType`)
+
+The `returnType = "Ljava/lang/Object;"` in Morphe acts as "any non-void object return",
+NOT an exact descriptor match. This correctly selects only the parser.
+
+### Protobuf path note
+
+`com/instagram/direct/model/protobufmodel/Message` (classes13 in v408, classes10 in v426) uses
+`sun.misc.Unsafe` for field writes during deserialization — no visible `iput` instructions.
+No distinct "converter consumer" class exists; proto fields are decoded generically by
+`LX/FWI;->A0D(Ljava/lang/Number;Ljava/lang/Object;)Ljava/lang/Object;` (10k-line dispatch).
+This path is used only for E2EE (Armadillo Express) DMs, not regular DMs.
+
 ## Recommended path forward
 
-1. **Make speculative hooks fail-soft** — resolve via `Fingerprint.getMethodOrNull`
-   and skip the injection when null, so a missing/obfuscation-shifted target
-   degrades the feature gracefully instead of aborting the whole patch session.
-   (Morphe exposes `getMethodOrNull(context)` / `getOriginalMethodOrNull`.)
-2. **Verify on device** per CLAUDE.md workflow: run the dev build, ObjectBrowser
-   the DM-parse object, the unsend handler, and the compose-bar TextWatcher, and
-   record the obfuscated field names + register positions here.
-3. Replace each generic fingerprint with a version anchored on a **unique** v426
-   string (validated by `grep -lao` returning exactly one relevant dex).
+1. **On-device ObjectBrowser** — install patched v426 build, trigger DM receive in logcat.
+   `dumpUnknownItemOnce` in the extension will emit the exact class name and all field
+   values. Match against:
+   - A non-empty String field → server_item_id → wire to `A0l()` getter
+   - A `Z` boolean that is `true` only on unsent messages → confirm `A1Y:Z`
+   - A sub-object whose String field is a 17+ digit thread ID → DirectThreadKey
+
+2. **Wire confirmed names** — update `reflectStringOrInvoke` / `reflectThreadIdFromItem`
+   fallback chains with the confirmed v426 obfuscated names once verified.
+
+3. **Version-bump check** — on every new IG target version, re-run:
+   ```bash
+   grep -lao "hide_in_thread" dex/*.dex   # should return 1 relevant dex
+   ```
+   and confirm the fingerprint still matches exactly 1 method.
 
 These obfuscated names (`LX/YvN;`, field tags, etc.) are **version-specific** and
 will change on every IG obfuscation run — always re-verify against the target.
