@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-17T09:54:25",
-  "description": "## [1.1.1-dev.6](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.5...v1.1.1-dev.6) (2026-06-17)\n\n### 🐛 Bug Fixes\n\n* **instagram:** use move-object/from16 before invoke-static in A0P hook ([3eaa13c](https://github.com/vishnuprasad0/piko/commit/3eaa13c4991dfa544bb8e1ad858678799283c253))",
-  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.6/patches-1.1.1-dev.6.mpp",
-  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.6/patches-1.1.1-dev.6.mpp.asc",
-  "version": "1.1.1-dev.6"
+  "created_at": "2026-06-17T18:50:31",
+  "description": "## [1.1.1-dev.7](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.6...v1.1.1-dev.7) (2026-06-17)\n\n### 🐛 Bug Fixes\n\n* **dm:** correct text field for MQTT path + harden Frida gadget setup ([2d9d243](https://github.com/vishnuprasad0/piko/commit/2d9d243f66ef0f01c1ea9d644f50c6232cf57c03))\n* **instagram:** register DeletedMessagesActivity in manifest ([254787f](https://github.com/vishnuprasad0/piko/commit/254787f34f73fb9efdc61ea36727a71b9661efca))",
+  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.7/patches-1.1.1-dev.7.mpp",
+  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.1-dev.7/patches-1.1.1-dev.7.mpp.asc",
+  "version": "1.1.1-dev.7"
 }

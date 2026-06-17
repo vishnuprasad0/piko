@@ -1,3 +1,10 @@
+## [1.1.1-dev.7](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.6...v1.1.1-dev.7) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **dm:** correct text field for MQTT path + harden Frida gadget setup ([2d9d243](https://github.com/vishnuprasad0/piko/commit/2d9d243f66ef0f01c1ea9d644f50c6232cf57c03))
+* **instagram:** register DeletedMessagesActivity in manifest ([254787f](https://github.com/vishnuprasad0/piko/commit/254787f34f73fb9efdc61ea36727a71b9661efca))
+
 ## [1.1.1-dev.6](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.5...v1.1.1-dev.6) (2026-06-17)
 
 ### 🐛 Bug Fixes
