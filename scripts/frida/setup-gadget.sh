@@ -19,7 +19,10 @@
 #   • Print the frida command to load dm-hooks.js
 #
 # Prerequisites (install once on the Mac):
-#   pip3 install objection frida-tools
+#   pip3 install objection
+#   pip3 install "frida==17.9.3" frida-tools   ← pin to 17.9.3; do NOT use 17.14.0
+#     frida 17.14.0 gadget crashes with SIGILL on MediaTek ARM64 (Moto g64 5G)
+#     because it uses CPU instructions the MTK chipset does not support.
 #   Android SDK with build-tools ≥35 and cmdline-tools/latest installed
 #   adb in PATH (or set ANDROID_HOME below)
 #
@@ -96,8 +99,11 @@ ok "Pulled: $WORK/instagram.apk ($(du -sh "$WORK/instagram.apk" | cut -f1))"
 # --skip-signing: we re-sign manually with the Morphe key below.
 info "Injecting Frida Gadget (this takes ~30 s)..."
 rm -f "$WORK/instagram.objection.apk"
+# --gadget-version 17.9.3: pin to match frida CLI. 17.14.0 crashes with SIGILL
+# on MediaTek ARM64 (Moto g64 5G) — symptom: "Error: illegal instruction" in Java.perform.
 (cd "$WORK" && objection patchapk \
     -s instagram.apk \
+    --gadget-version 17.9.3 \
     --skip-resources \
     --ignore-nativelibs \
     --target-class "$IG_ACTIVITY" \

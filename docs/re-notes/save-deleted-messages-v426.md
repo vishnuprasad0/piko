@@ -132,7 +132,7 @@ Class names differ from v426 but the structure is equivalent.
 | `item_id` field | getter `A0l()` | `A13:Ljava/lang/String;` ✓ confirmed |
 | `user_id` (sender) field | — | `A1M:Ljava/lang/String;` ✓ confirmed |
 | `timestamp` field | Long | `A1J:Ljava/lang/String;` (µs string) ✓ confirmed |
-| `text` content field | nested object | `A1I:Ljava/lang/String;` ✓ confirmed |
+| `text` content field | nested object | REST: `A1I:Ljava/lang/String;` ✓; MQTT: `A0o:Object` on `X.0gF` subclass (A1I is null on MQTT path — confirmed by live Frida dump) |
 | `item_type` field | `A0R:String` | `A0Y:LX/8ot;` (enum) ✓ confirmed |
 | `thread_key` field | `A16:DirectThreadKey` | `A0W:Lcom/instagram/model/direct/DirectThreadKey;` ✓ confirmed |
 | DirectThreadKey.threadId | `A00:Ljava/lang/String;` | `A00:Ljava/lang/String;` ✓ same |

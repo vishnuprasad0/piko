@@ -141,9 +141,17 @@ public class SavedMessagesHook {
                 }
             } catch (Exception ignored) {}
 
-            // text content: v426 stores directly on item (A1I), v408 in nested text object
+            // text content:
+            //   REST path (X.9ZA base): A1I:String
+            //   MQTT path (X.0gF wrapper): A0o:Object (confirmed by Frida — "Hi" etc.)
+            //   v408: nested text object with A00:String
             try {
                 content = reflectString(item, "text", "A1I");
+                if (content == null) {
+                    // MQTT wrapper (X.0gF) stores text in A0o on the subclass, not on X.9ZA
+                    Object mqttText = getFieldValue(item, "A0o");
+                    if (mqttText instanceof String) content = (String) mqttText;
+                }
                 if (content == null) {
                     Object textObj = findFieldByNameHint(item, "text");
                     if (textObj instanceof String) {
