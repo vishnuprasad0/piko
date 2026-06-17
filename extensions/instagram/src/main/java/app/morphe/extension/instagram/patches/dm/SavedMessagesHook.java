@@ -24,15 +24,74 @@ import app.morphe.extension.instagram.db.PikoMessageDb;
 import app.morphe.extension.instagram.utils.Pref;
 import app.morphe.extension.shared.Logger;
 
+/**
+ * Runtime hooks for the "Save deleted messages" feature.
+ *
+ * <h2>v426 Architecture — TWO delivery paths, both must be hooked</h2>
+ *
+ * <pre>
+ * REST / JSON (thread history load)
+ *   LX/0gL;.parseFromJson(LX/R0r;)LX/9ZA;    ← classes.dex
+ *     └─ LX/AtQ;.parse → LX/0gG;.unsafeParseFromJson (creates LX/0gF; instance)
+ *   Hook 1 is injected before RETURN_OBJECT in parseFromJson.
+ *
+ * MQTT / MSys real-time delivery
+ *   LX/0gF;.A02(LX/1kP;, ..., LX/02L;, ...)  ← 24-param constructor, builds from delta
+ *   LX/0gF;.A0P(UserSession, LX/02L;)LX/0gF;  ← classes12.dex, post-processing step
+ *   Hook 2 is injected before the success RETURN_OBJECT in A0P (offset 0351/0352).
+ * </pre>
+ *
+ * MQTT messages (including real-time send + unsend while in-thread) NEVER go through
+ * parseFromJson. Without Hook 2, any message sent and unsent while the user is actively
+ * in the thread would be missed entirely.
+ *
+ * <h2>Class hierarchy</h2>
+ *
+ * {@code LX/0gF;} (PUBLIC FINAL) extends {@code LX/9ZA;} (DirectItem base class).
+ * {@code LX/0gF;} has NO additional instance fields — all data fields are declared on
+ * {@code LX/9ZA;}. Every {@code getDeclaredField} call must walk the superclass chain
+ * (see {@link #getFieldValue}) or it will silently fail when the runtime type is
+ * {@code LX/0gF;} and the field is actually on {@code LX/9ZA;}.
+ *
+ * <h2>v426 field mapping (confirmed from dexdump classes12.dex)</h2>
+ *
+ * <pre>
+ * JSON key        Obfuscated field   Type                   Class
+ * item_id         A13                String                 LX/9ZA;
+ * hide_in_thread  A1Y                Z (boolean)            LX/9ZA;
+ * user_id         A1M                String                 LX/9ZA;
+ * timestamp       A1J                String (microseconds)  LX/9ZA;
+ * text            A1I                String                 LX/9ZA;
+ * item_type       A0Y                LX/8ot; (enum)         LX/9ZA;
+ * thread_key      A0W                DirectThreadKey        LX/9ZA;
+ * threadId (key)  A00                String                 DirectThreadKey
+ * MSys delta ref  A0V                LX/02L;                LX/9ZA;
+ * </pre>
+ *
+ * v408 fallbacks: item_id via getter {@code A0l()}, hide_in_thread as {@code A2V:Z},
+ * thread_key fields {@code A16/A18/A15}.
+ *
+ * <h2>How to update for a new Instagram version</h2>
+ *
+ * 1. Install the patched APK (pref on). Open any DM thread.
+ * 2. In logcat (tag: piko), find "SavedMessagesHook ObjectBrowser dump" — this lists all
+ *    fields on the runtime item, including inherited ones from superclasses.
+ * 3. If field names differ from the table above, update the constants in
+ *    {@link #onMessageReceived} and the table in Fingerprint.kt.
+ * 4. If the hook doesn't fire at all, the fingerprint anchors may have changed:
+ *    - Hook 1: grep classes.dex for methods with "item_id" + "hide_in_thread" + returnType Z
+ *    - Hook 2: grep classes12.dex for "DirectMessage.postprocess" + "null type" string pair
+ */
 @SuppressWarnings("unused")
 public class SavedMessagesHook {
 
     private static final String BUTTON_TAG = "piko_deleted_msgs_btn";
 
     // -------------------------------------------------------------------------
-    // Hook 1: called just before DirectThreadItem parser returns the parsed object.
-    // We extract fields via reflection because Instagram's model is ProGuard-obfuscated.
-    // Use ObjectBrowser on the item object to discover exact field names for each version.
+    // Hook 1 (REST) + Hook 2 (MQTT): called when any DirectItem is finalized.
+    // Hook 1 fires from LX/0gL;.parseFromJson (REST thread-history loads).
+    // Hook 2 fires from LX/0gF;.A0P (MQTT/MSys real-time delivery).
+    // Both pass the item as Object; reflection extracts v426 fields listed above.
     // -------------------------------------------------------------------------
     public static void onMessageReceived(Object item) {
         try {

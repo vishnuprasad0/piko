@@ -9,31 +9,32 @@ package app.crimera.patches.instagram.misc.dm.saveMessages
 import app.morphe.patcher.Fingerprint
 
 /**
- * Targets LX/0gL;.A00(LX/R0r;LX/9ZA;Ljava/lang/String;)Z in v426 classes12.dex.
+ * Targets LX/0gL;.A00(LX/R0r;LX/9ZA;Ljava/lang/String;)Z in v426 classes.dex.
  *
- * This is the per-field JSON dispatch helper: called once per JSON key during
- * DirectItem deserialization. It compares the current key against known field
- * names and writes matching values into the DirectItem (LX/9ZA;).
+ * This is the per-field JSON dispatch helper on the REST delivery path:
+ *   REST: LX/0gL;.parseFromJson → LX/AtQ;.parse → LX/0gG;.unsafeParseFromJson
+ *         → LX/0gL;.A00 (called once per JSON key)    ← this fingerprint locates A00
+ *         Hook 1 is injected in parseFromJson, NOT in A00.
  *
- * The two anchor strings are uniquely co-located ONLY in this method across all
- * 19 dex files — "hide_in_thread" appears only in classes12.dex with "item_id".
- * returnType = "Z" (boolean) distinguishes it from the void serializer
- * LX/0gG;.A00(LX/R1V;LX/0gF;Z)V which also contains both strings.
+ * IMPORTANT: LX/0gL; lives in classes.dex, NOT classes12.dex. The fingerprint
+ * resolves to classes.dex (returnType=Z uniquely selects it there). classes12.dex
+ * has 3 methods containing "hide_in_thread" but none with returnType=Z.
  *
  * This fingerprint is NOT hooked directly. It is used only to locate the
  * containing class LX/0gL;, from which parseFromJson is retrieved and hooked.
  *
- * v426 field mapping (confirmed from dexdump classes12.dex):
- *   item_id        → LX/9ZA;.A13:Ljava/lang/String;
- *   hide_in_thread → LX/9ZA;.A1Y:Z
- *   user_id        → LX/9ZA;.A1M:Ljava/lang/String;
- *   timestamp      → LX/9ZA;.A1J:Ljava/lang/String;  (microseconds string)
- *   text           → LX/9ZA;.A1I:Ljava/lang/String;
- *   item_type      → LX/9ZA;.A0Y:LX/8ot; (enum — use toString())
- *   thread_key     → LX/9ZA;.A0W:Lcom/instagram/model/direct/DirectThreadKey;
- *   DirectThreadKey.threadId → .A00:Ljava/lang/String; (same as v408)
+ * v426 field mapping — all fields declared on LX/9ZA; (base class):
+ *   item_id        → A13:Ljava/lang/String;
+ *   hide_in_thread → A1Y:Z                           (true = unsent)
+ *   user_id        → A1M:Ljava/lang/String;
+ *   timestamp      → A1J:Ljava/lang/String;           (microseconds; divide by 1000 for ms)
+ *   text           → A1I:Ljava/lang/String;
+ *   item_type      → A0Y:LX/8ot;                     (enum — call toString())
+ *   thread_key     → A0W:Lcom/instagram/model/direct/DirectThreadKey;
+ *   DirectThreadKey.threadId → .A00:Ljava/lang/String;
+ *   MSys delta ref → A0V:LX/02L;
  *
- * v408 field mapping (for fallback):
+ * v408 fallback field names (wired in SavedMessagesHook for multi-version support):
  *   DirectItem: LX/5jI;, hideInThread: A2V:Z, item_id: getter A0l(), threadKey: A16/A18
  */
 internal object DirectItemFieldParserFingerprint : Fingerprint(
@@ -42,19 +43,27 @@ internal object DirectItemFieldParserFingerprint : Fingerprint(
 )
 
 /**
- * Targets LX/0gF;.A0P in v426 classes12.dex.
+ * Targets LX/0gF;.A0P(UserSession, LX/02L;)LX/0gF; in v426 classes12.dex.
  *
- * A0P is the post-processing step called after EVERY DirectItem is assembled
- * from an MSys/MQTT sync delta. It is NOT called by the REST/JSON parseFromJson
- * path — those are two separate code paths. Hooking A0P here covers real-time
- * MQTT delivery (which parseFromJson never sees).
+ * A0P is the MQTT/MSys post-processing step — the ONLY hook point for real-time
+ * messages delivered via the MSys Modular Client Application sync framework.
+ * It is NOT on the REST/JSON path; parseFromJson is never called for MQTT messages.
  *
- * LX/0gF; extends LX/9ZA; (DirectItem) with no additional instance fields;
- * all data fields (A13=item_id, A1Y=hide_in_thread, etc.) live on LX/9ZA;.
- * SavedMessagesHook.onMessageReceived walks the superclass chain to find them.
+ *   MQTT: MSys delta (LX/02L;) → LX/0gF;.A02(..., LX/02L;, ...)  [builds item]
+ *         → LX/0gF;.A0P(UserSession, LX/02L;)                     ← Hook 2 here
  *
- * The two anchor strings are uniquely co-located in A0P only in classes12.dex.
- * returnType not specified to avoid hardcoding the obfuscated class name.
+ * LX/0gF; (PUBLIC FINAL) extends LX/9ZA; (DirectItem base class) with NO additional
+ * instance fields. The runtime type of `this` inside A0P is LX/0gF;, but all data
+ * fields (item_id=A13, hide_in_thread=A1Y, etc.) are declared on LX/9ZA;.
+ * onMessageReceived uses getFieldValue() which walks the superclass chain.
+ *
+ * A0P return structure (v426, offset in classes12.dex):
+ *   success: return-object v17 (= this) at offsets 0351, 0352
+ *   error:   return-object v2  (= null) at offsets 004a/004b, 02c8/02c9, 0326/0327
+ *   Hook 2 is injected before the last RETURN_OBJECT (picks offset 0352, the this-return).
+ *
+ * Anchor strings are unique to A0P and present only in classes12.dex.
+ * returnType omitted to avoid hardcoding the obfuscated LX/0gF; class name.
  */
 internal object DirectItemPostprocessFingerprint : Fingerprint(
     strings = listOf("DirectMessage.postprocess.%s", "Encountered DirectMessage with null type"),
