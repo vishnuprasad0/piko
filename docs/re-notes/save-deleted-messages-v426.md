@@ -170,6 +170,61 @@ No distinct "converter consumer" class exists; proto fields are decoded generica
 `LX/FWI;->A0D(Ljava/lang/Number;Ljava/lang/Object;)Ljava/lang/Object;` (10k-line dispatch).
 This path is used only for E2EE (Armadillo Express) DMs, not regular DMs.
 
+## Live Frida session — Windows, mt6855 / Android 15 (Jun 2026)
+
+Verified on a non-rooted Moto device (MediaTek **mt6855**, Android 15) patched with
+the Windows gadget pipeline (`scripts/frida/setup-gadget.ps1`).
+
+### Frida version is device-specific on MediaTek
+- **Gadget/CLI 17.14.1 works** on mt6855 — `Java.use()` builds class wrappers cleanly.
+- **17.9.3 SIGILLs** (`Error: illegal instruction` in `java.js` during class `build`)
+  on mt6855 — even though 17.9.3 was the *safe* version on the Moto g64 5G.
+  → MediaTek Frida compatibility is per-chip. If `Java.use` throws "illegal
+  instruction", sweep gadget versions (`setup-gadget.ps1 -GadgetVersion X`).
+
+### Which hooks are stable
+- **`X.0gF.A0P` (MQTT) — STABLE.** Single hook ran a full session, no crash.
+- **`X.0gL.parseFromJson` (REST) — UNSTABLE on MediaTek.** Hooking it SIGSEGVs
+  unrelated IG worker threads (`IgExecutorV2`, BUS_ADRALN / SEGV_MAPERR) within ~20s.
+  Control test (gadget connected, zero hooks) was rock-stable → the fault is the
+  Interceptor patch on that hot multi-threaded parser, not the gadget.
+  → `dm-hooks.js` defaults `ENABLE_REST_HOOK=false`, `ENABLE_MQTT_HOOK=true`.
+
+### Live field readings on the MQTT object (`X.0gF`)
+Confirmed by reading fields by name (no full-chain walk; scalar-only toString):
+- `A1M` = sender user_id (e.g. `6962634654`) ✓
+- `A1J` = timestamp, microseconds (e.g. `1781686295214432`) ✓
+- `A1I` = text — populated for simple text items (saw `"Hhhhhhhhhhh"`), else null
+- `A1Y` = hide_in_thread — **false on all normal items; = true is the unsend/deletion signal**
+- `A0o` = varies by item type: `<java.lang.String>` (text), `RegularImmutableList`,
+  or `X.1fV` — this is the MQTT text/payload slot (A1I is null for non-text items)
+- **`A13` returned boolean `true`, NOT an item_id** → on the `X.0gF` subclass A13 is a
+  different (boolean) field than the `item_id:A13` documented for the base class.
+  The MQTT item_id lives elsewhere; re-confirm before relying on A13 for MQTT.
+
+### A0P replays ALL historical unsends on every inbox sync (important)
+`A0P` is not just realtime — when the inbox syncs over MQTT it **re-processes every
+already-unsent item in history**. So a naive "dump when A1Y=true" floods the console
+with months-old unsends (timestamps spanning back to 2024) the moment you connect,
+even while idle. `A1Y=true` means "this item is unsent", NOT "unsent just now".
+
+`dm-hooks.js` handles this with:
+- **Dedupe** by `user_id:timestamp` (`A1M`:`A1J`) so re-syncs never reprint an item.
+- **Baseline window** (`BASELINE_MS`, 7s): items seen in the first 7s are counted as
+  pre-existing backlog and logged quietly. After that, a NEW unsent item = a real
+  happening-now deletion → printed loudly as `*** LIVE UNSEND / DELETION ***`.
+- Normal (A1Y=false) live items print one-line as `[LIVE MSG] ... text=...`.
+- On a live unsend it also `dumpScalars(A0o)` — the `A0o` field is an `X.3jS` wrapper;
+  its scalar fields are where the deleted item's id / original text should live
+  (A1I/A0Y/A0W are null on these action-log items, so A0o is the payload to mine).
+
+### How to capture a deletion
+Launch IG fresh, attach, **wait for the `===== BASELINE DONE =====` banner**, THEN have
+another account **send + unsend** a message. Watch for `*** LIVE UNSEND / DELETION ***`
+followed by the `A0o contents` dump.
+
+---
+
 ## Recommended path forward
 
 ### Step 0: Use Frida for real-time verification (no release cycle needed)
