@@ -4,6 +4,12 @@
 
 * **instagram:** revert hide_in_thread fingerprint anchor — absent in v426 dex ([adb7707](https://github.com/vishnuprasad0/piko/commit/adb770799f92ada83ec682d143edc124416c5bb3))
 
+## [1.1.1-dev.3](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.2...v1.1.1-dev.3) (2026-06-17)
+
+### 🐛 Bug Fixes
+
+* **instagram:** revert hide_in_thread fingerprint anchor — absent in v426 dex ([adb7707](https://github.com/vishnuprasad0/piko/commit/adb770799f92ada83ec682d143edc124416c5bb3))
+
 ## [1.1.1-dev.2](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.1...v1.1.1-dev.2) (2026-06-17)
 
 ### 🐛 Bug Fixes
