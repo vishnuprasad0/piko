@@ -34,6 +34,14 @@ val addSettingsActivityPatch =
                 activity.setAttribute("android:name", "app.morphe.extension.instagram.settings.preference.fragments.RestorePrefActivity")
                 activity.setAttribute("android:exported", "false")
                 application.appendChild(activity)
+
+                // "Save deleted messages" feature: the View-deleted-messages screen.
+                // Must be declared or startActivity() throws ActivityNotFoundException.
+                activity = document.createElement("activity")
+                activity.setAttribute("android:name", "app.morphe.extension.instagram.patches.dm.DeletedMessagesActivity")
+                activity.setAttribute("android:theme", "@android:style/Theme.DeviceDefault.NoActionBar")
+                activity.setAttribute("android:exported", "false")
+                application.appendChild(activity)
             }
         }
     }
