@@ -172,6 +172,38 @@ This path is used only for E2EE (Armadillo Express) DMs, not regular DMs.
 
 ## Recommended path forward
 
+### Step 0: Use Frida for real-time verification (no release cycle needed)
+
+The release → install → test loop is too slow for fingerprint/hook debugging.
+**Use Frida instead:**
+
+```bash
+# Rooted device / emulator — run frida-server on device first
+frida -U -f com.instagram.android -l scripts/frida/dm-hooks.js --no-pause
+
+# Non-root: embed gadget into the patched APK once, then iterate freely
+bash scripts/frida/gadget-inject.sh Instagram-piko-patched.apk
+# install the resulting -frida.apk once, then:
+frida -U gadget -l scripts/frida/dm-hooks.js
+```
+
+The script hooks `parseFromJson` and `A0P` directly by class name — bypasses
+fingerprints entirely. You see in real-time:
+- `[+] Hook N installed` → class/method found in this IG version
+- `[-] Hook N FAILED` → class name changed → run `discover-classes.js` to find new one
+- `◄ UNSENT` in the object dump → `A1Y` is true → deletion confirmed
+
+**Workflow for each new IG version:**
+1. Run `discover-classes.js` to find updated class names
+2. Verify with `dm-hooks.js` — confirm hooks fire + field names match
+3. Update `V426` constants in `dm-hooks.js` and `Fingerprint.kt` together
+4. Ship
+
+> **Key insight:** frida -U attaches in < 2 seconds. You can test 10 hook
+> variations in the time one release cycle takes.
+
+---
+
 1. **On-device ObjectBrowser** — install patched v426 build, trigger DM receive in logcat.
    `dumpUnknownItemOnce` in the extension will emit the exact class name and all field
    values. Match against:
