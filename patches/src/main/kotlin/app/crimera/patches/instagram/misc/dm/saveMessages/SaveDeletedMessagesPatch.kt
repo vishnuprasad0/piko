@@ -62,10 +62,15 @@ val saveDeletedMessagesPatch =
                 val returnObjIndex = returnObjInstruction.location.index
                 val itemRegister = returnObjInstruction.registersUsed[0]
 
+                // A0P has many local registers; the success return uses v17 (= p0 = this).
+                // invoke-static only supports v0-v15 (4-bit register field), so move first.
+                val reg = getFreeRegisterProvider(index = returnObjIndex, numberOfFreeRegistersNeeded = 1).getFreeRegister()
+
                 addInstructions(
                     returnObjIndex,
                     """
-                    invoke-static {v$itemRegister}, $HOOK_CLASS->onMessageReceived(Ljava/lang/Object;)V
+                    move-object/from16 v$reg, v$itemRegister
+                    invoke-static {v$reg}, $HOOK_CLASS->onMessageReceived(Ljava/lang/Object;)V
                     """.trimIndent(),
                 )
             }
