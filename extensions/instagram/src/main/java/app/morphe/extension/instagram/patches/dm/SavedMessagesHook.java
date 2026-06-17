@@ -40,6 +40,12 @@ public class SavedMessagesHook {
             if (!Pref.saveDeletedMessages()) return;
             if (item == null) return;
 
+            // DIAGNOSTIC: prove the hook fires and reveal the real object shape.
+            // printException always emits (unaffected by debug-log setting).
+            final String dcls = item.getClass().getName();
+            Logger.printException(() -> "SavedMessagesHook ENTER item=" + dcls);
+            dumpUnknownItemOnce(item);
+
             Entity msg = new Entity(item);
 
             String messageId  = reflectString(item, "item_id",   "A00");
@@ -144,7 +150,7 @@ public class SavedMessagesHook {
                   .append(f.getName()).append(" = ").append(vs).append('\n');
             }
             String out = sb.toString();
-            Logger.printInfo(() -> out);
+            Logger.printException(() -> out);
         } catch (Exception ignored) {}
     }
 
