@@ -86,6 +86,17 @@ public class PikoMessageDb extends SQLiteOpenHelper {
         db.update(TABLE, cv, "message_id = ?", new String[]{messageId});
     }
 
+    public String getStoredContent(String messageId) {
+        if (messageId == null) return null;
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor c = db.query(TABLE, new String[]{"content"}, "message_id = ?",
+                new String[]{messageId}, null, null, null);
+        String result = null;
+        if (c.moveToFirst()) result = c.getString(0);
+        c.close();
+        return (result != null && !result.isEmpty()) ? result : null;
+    }
+
     // Returns [messageId, threadId, senderUsername, content, messageType, timestamp]
     public List<String[]> getDeletedMessages() {
         List<String[]> result = new ArrayList<>();

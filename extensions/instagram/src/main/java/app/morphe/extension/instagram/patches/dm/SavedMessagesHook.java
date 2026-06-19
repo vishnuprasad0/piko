@@ -205,12 +205,54 @@ public class SavedMessagesHook {
                 db.insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
                 db.markDeleted(messageId);
                 notifyDeletion(senderUser, content, type);
+
+                // Anti-revoke in-place: undo the deletion flag on the item object so IG
+                // keeps the message visible in the thread with its original text.
+                // content is null on the unsend event (text is stripped before delivery),
+                // so we look up the previously-stored text from the DB vault.
+                String storedContent = (content != null && !content.isEmpty())
+                        ? content : db.getStoredContent(messageId);
+                antiRevokeItem(item, storedContent);
             } else {
                 db.insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
             }
 
         } catch (Exception e) {
             Logger.printException(() -> "SavedMessagesHook.onMessageReceived: " + e);
+        }
+    }
+
+    /**
+     * Anti-revoke in-place: reset the hide_in_thread flag and restore text so IG's thread
+     * UI renders the message normally instead of hiding it. The item object is mutated
+     * in place — the caller's return-object smali instruction sees the modified state.
+     */
+    private static void antiRevokeItem(Object item, String restoredContent) {
+        // Reset hide_in_thread (all known obfuscated names + proto stable name).
+        setField(item, "A1Y", false);        // v426 LX/9ZA;
+        setField(item, "A2V", false);        // v408 LX/5jI;
+        setField(item, "hideInThread_", false); // proto model stable name
+
+        // Restore original text to the item's text field so it displays correctly.
+        if (restoredContent != null) {
+            setField(item, "A1I", restoredContent);  // v426 REST text field
+        }
+    }
+
+    /** Set a field by name on obj, walking the superclass chain. Silently ignores missing fields. */
+    private static void setField(Object obj, String fieldName, Object value) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            try {
+                Field f = cls.getDeclaredField(fieldName);
+                f.setAccessible(true);
+                f.set(obj, value);
+                return;
+            } catch (NoSuchFieldException ignored) {
+                cls = cls.getSuperclass();
+            } catch (Exception ignored) {
+                return;
+            }
         }
     }
 
