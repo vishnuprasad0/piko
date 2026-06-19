@@ -86,7 +86,6 @@ internal object DirectComposeBarTextWatcherFingerprint : Fingerprint(
  *   v14.70 (v408): LX/0LJ;.A0P(DirectThreadKey, String, String)V  (classes2.dex)
  *   v14.90 (v4xx): LX/1yN;.A0S(DirectThreadKey, String, String)V  (classes2.dex)
  *
- * SamMods (instapro) hooks this exact method to capture unsent messages.
  * When Instagram unsends a message it calls this DAO to remove it from the
  * local SQLite; at that point the item_id arrives as a DIRECT PARAMETER
  * (no obfuscated field name reflection needed).

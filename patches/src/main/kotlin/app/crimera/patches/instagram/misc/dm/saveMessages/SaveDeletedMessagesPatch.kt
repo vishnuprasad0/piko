@@ -91,15 +91,14 @@ val saveDeletedMessagesPatch =
                 )
             }
 
-            // --- Hook 4: Intercept the SQLite DAO "delete by item_id" call (SamMods approach) ---
+            // --- Hook 4: Intercept the SQLite DAO "delete by item_id" call ---
             // When Instagram unsends a message it calls this DAO to remove it from the
             // local SQLite DB.  The item_id arrives as p2 (server_item_id) / p3 (client_item_id)
             // directly — no reflection or obfuscated field names needed.
             // We inject at entry (index 0) so the record is still in Instagram's DB and in
             // our vault at the time the hook fires.
-            // This is the same hook point used by SamMods (instapro) to capture deleted messages:
             //   v408: LX/0LJ;.A0P(DirectThreadKey, String, String)V
-            //   v4xx: LX/1yN;.A0S(DirectThreadKey, String, String)V
+            //   v4xx: (class name changes, string anchor stays the same)
             DirectItemDbHideFingerprint.method.apply {
                 val regs = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 3)
                 val r0 = regs.getFreeRegister()   // p0 = DAO object (LX/0LJ;) — used to get SQLiteDatabase
