@@ -163,11 +163,29 @@ public class SavedMessagesHook {
             } catch (Exception ignored) {}
 
             if (messageId == null) {
-                // Field mapping unknown on this build: dump the object once so the
-                // exact obfuscated field names can be read from logcat (ObjectBrowser-lite).
+                // The legacy obfuscated id fields (A13/A0l) do NOT resolve on the MQTT
+                // subclass (X.0gF) — there A13 is a boolean, not item_id — so modern
+                // (E2EE) DMs would silently fall through here and never be stored,
+                // leaving the deleted-messages list permanently empty.
+                //
+                // Instead of dropping the message, derive a stable synthetic key from
+                // sender + timestamp (the same dedupe key scripts/frida/dm-hooks.js uses).
+                // This guarantees every received item is captured and, critically, that a
+                // later unsend of the same item maps back to the same row to mark deleted.
+                //
+                // Still dump the object once so the real obfuscated id field can be
+                // confirmed and wired in (see Fix B / SgMessage path).
                 dumpUnknownItemOnce(item);
-                return;
+                if (senderId != null) {
+                    messageId = "syn:" + senderId + ":" + timestamp;
+                } else {
+                    // No id and no sender — nothing we can key on reliably; skip.
+                    return;
+                }
             }
+
+            // thread_id is NOT NULL in the schema; fall back to empty when unknown.
+            if (threadId == null) threadId = "";
 
             PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
 
