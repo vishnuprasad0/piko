@@ -1,3 +1,9 @@
+## [1.2.0-dev.4](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.3...v1.2.0-dev.4) (2026-06-19)
+
+### 🐛 Bug Fixes
+
+* **dm:** robust DB scan, media type labels, clean references ([e6c30d7](https://github.com/vishnuprasad0/piko/commit/e6c30d72e91d6e0d19ca792e8ea9b0c83bfb2785))
+
 ## [1.2.0-dev.3](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.2...v1.2.0-dev.3) (2026-06-19)
 
 ### 🐛 Bug Fixes
