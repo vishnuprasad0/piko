@@ -80,3 +80,35 @@ internal object DirectComposeBarTextWatcherFingerprint : Fingerprint(
     parameters = listOf("Ljava/lang/CharSequence;", "I", "I", "I"),
     returnType = "V",
 )
+
+/**
+ * Targets the SQLite DAO "delete/hide DirectItem by ID" method across versions:
+ *   v14.70 (v408): LX/0LJ;.A0P(DirectThreadKey, String, String)V  (classes2.dex)
+ *   v14.90 (v4xx): LX/1yN;.A0S(DirectThreadKey, String, String)V  (classes2.dex)
+ *
+ * SamMods (instapro) hooks this exact method to capture unsent messages.
+ * When Instagram unsends a message it calls this DAO to remove it from the
+ * local SQLite; at that point the item_id arrives as a DIRECT PARAMETER
+ * (no obfuscated field name reflection needed).
+ *
+ * Hook 4 is injected at index 0 (method entry) so it fires before the actual
+ * delete executes — our DB record (written by Hook 1/2 on arrival) is still
+ * present and can be marked deleted.
+ *
+ * Anchor: "Both message ID and client context is null." is stable across
+ * v408 → v426 → v4xx and appears only once in each version's dex set.
+ *
+ * Parameters:
+ *   p1 = DirectThreadKey   (com.instagram.model.direct.DirectThreadKey)
+ *   p2 = server_item_id    (String, nullable — the stable item ID from server)
+ *   p3 = client_item_id    (String, nullable — local client-context fallback)
+ */
+internal object DirectItemDbHideFingerprint : Fingerprint(
+    strings = listOf("Both message ID and client context is null."),
+    parameters = listOf(
+        "Lcom/instagram/model/direct/DirectThreadKey;",
+        "Ljava/lang/String;",
+        "Ljava/lang/String;",
+    ),
+    returnType = "V",
+)

@@ -226,16 +226,23 @@ public class SavedMessagesHook {
      * Anti-revoke in-place: reset the hide_in_thread flag and restore text so IG's thread
      * UI renders the message normally instead of hiding it. The item object is mutated
      * in place — the caller's return-object smali instruction sees the modified state.
+     *
+     * Two text paths must be restored (confirmed by Frida on v426):
+     *   REST path (LX/9ZA; base class): text at A1I:String
+     *   MQTT path (LX/0gF; subclass):   text at A0o:Object (holds the String directly)
+     * Both must be set; if only A1I is set, MQTT-delivered items still appear unsent
+     * because Instagram reads from A0o when the runtime type is the MQTT subclass.
      */
     private static void antiRevokeItem(Object item, String restoredContent) {
         // Reset hide_in_thread (all known obfuscated names + proto stable name).
-        setField(item, "A1Y", false);        // v426 LX/9ZA;
-        setField(item, "A2V", false);        // v408 LX/5jI;
+        setField(item, "A1Y", false);           // v426 LX/9ZA; / v4xx LX/9wl;
+        setField(item, "A2V", false);           // v408 LX/5jI;
         setField(item, "hideInThread_", false); // proto model stable name
 
-        // Restore original text to the item's text field so it displays correctly.
+        // Restore original text to BOTH text fields.
         if (restoredContent != null) {
-            setField(item, "A1I", restoredContent);  // v426 REST text field
+            setField(item, "A1I", restoredContent); // v426 REST text field (base class)
+            setField(item, "A0o", restoredContent); // v426 MQTT text field (subclass A0o:Object)
         }
     }
 
@@ -368,6 +375,48 @@ public class SavedMessagesHook {
 
         } catch (Exception e) {
             Logger.printException(() -> "SavedMessagesHook.onMessageDeleted: " + e);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Hook 4 (SamMods-inspired): fires at entry of the SQLite DAO method that
+    // deletes / hides a DirectItem from Instagram's local database.
+    //
+    // Method signature (across versions):
+    //   v408 LX/0LJ;.A0P(DirectThreadKey, String, String)V
+    //   v426 LX/1yN;.A0S(DirectThreadKey, String, String)V  (both in classes2.dex)
+    //
+    // Parameters (p1-p3, passed here as threadKey/serverId/clientId):
+    //   threadKey  — com.instagram.model.direct.DirectThreadKey
+    //   serverId   — server_item_id  (the stable server-side message ID; may be null)
+    //   clientId   — client_item_id  (local client-context ID; fallback when serverId null)
+    //
+    // The item_id arrives as a DIRECT PARAMETER — no obfuscated field names needed.
+    // This is the same approach SamMods (instapro) uses to catch deleted messages.
+    //
+    // By the time this fires, Hook 1/2 have already stored the message in our vault.
+    // We just mark it as deleted.  The hook fires BEFORE the actual SQLite delete
+    // executes, so the content is still retrievable if needed.
+    // -------------------------------------------------------------------------
+    public static void onMessageHiddenFromDb(Object threadKey, String serverId, String clientId) {
+        try {
+            if (!Pref.saveDeletedMessages()) return;
+
+            // Use server_item_id when available; fall back to client_item_id.
+            String itemId = (serverId != null && !serverId.isEmpty()) ? serverId : clientId;
+            if (itemId == null) return;
+
+            PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
+            db.markDeleted(itemId);
+
+            // Fire a notification using stored content if we have it.
+            String content = db.getStoredContent(itemId);
+            if (content != null && !content.isEmpty()) {
+                notifyDeletion(null, content, "text");
+            }
+
+        } catch (Exception e) {
+            Logger.printException(() -> "SavedMessagesHook.onMessageHiddenFromDb: " + e);
         }
     }
 
