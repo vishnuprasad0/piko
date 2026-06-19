@@ -8,6 +8,8 @@ package app.morphe.extension.instagram.patches.dm;
 
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.view.Gravity;
@@ -17,7 +19,9 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
+import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 import app.morphe.extension.crimera.PikoUtils;
 import app.morphe.extension.instagram.db.PikoMessageDb;
@@ -382,42 +386,160 @@ public class SavedMessagesHook {
     // Hook 4 (SamMods-inspired): fires at entry of the SQLite DAO method that
     // deletes / hides a DirectItem from Instagram's local database.
     //
-    // Method signature (across versions):
-    //   v408 LX/0LJ;.A0P(DirectThreadKey, String, String)V
-    //   v426 LX/1yN;.A0S(DirectThreadKey, String, String)V  (both in classes2.dex)
+    // Method signature:
+    //   v426 LX/0LJ;.A0P(DirectThreadKey, String serverId, String clientId)V
     //
-    // Parameters (p1-p3, passed here as threadKey/serverId/clientId):
-    //   threadKey  — com.instagram.model.direct.DirectThreadKey
-    //   serverId   — server_item_id  (the stable server-side message ID; may be null)
-    //   clientId   — client_item_id  (local client-context ID; fallback when serverId null)
+    // We receive p0 (the DAO object), p2 (server_item_id), p3 (client_item_id).
+    // The hook fires BEFORE the DELETE executes, so Instagram's own "messages"
+    // table still has the row with its text, thread_id, timestamp, etc.
     //
-    // The item_id arrives as a DIRECT PARAMETER — no obfuscated field names needed.
-    // This is the same approach SamMods (instapro) uses to catch deleted messages.
+    // We read the message from Instagram's own SQLite (same as SamMods' native
+    // NotifInit.init() does via JNI), store it in our vault, mark deleted, and
+    // fire a notification — all without relying on Hooks 1/2 having pre-captured.
     //
-    // By the time this fires, Hook 1/2 have already stored the message in our vault.
-    // We just mark it as deleted.  The hook fires BEFORE the actual SQLite delete
-    // executes, so the content is still retrievable if needed.
+    // Instagram DB access chain (from smali analysis of LX/0HR;):
+    //   LX/0HR;.A06   static LX/0HS;  — connection manager singleton
+    //   LX/0HS;.A00() → LX/0HR;       — get open helper instance
+    //   LX/0HR;.A00   SQLiteDatabase   — the live database handle (instance field)
+    // Table: "messages" (LX/0LJ;.A0G()), relevant columns:
+    //   server_item_id, client_item_id, text, thread_id, user_id, timestamp
     // -------------------------------------------------------------------------
-    public static void onMessageHiddenFromDb(Object threadKey, String serverId, String clientId) {
+    public static void onMessageHiddenFromDb(Object dao, String serverId, String clientId) {
         try {
             if (!Pref.saveDeletedMessages()) return;
 
-            // Use server_item_id when available; fall back to client_item_id.
             String itemId = (serverId != null && !serverId.isEmpty()) ? serverId : clientId;
             if (itemId == null) return;
 
-            PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
-            db.markDeleted(itemId);
+            String content     = null;
+            String threadId    = "";
+            String senderId    = null;
+            String messageType = "text";
+            long   timestamp   = System.currentTimeMillis();
 
-            // Fire a notification using stored content if we have it.
-            String content = db.getStoredContent(itemId);
+            // --- Read from Instagram's own "messages" table before the DELETE fires ---
+            SQLiteDatabase igDb = getInstagramDb(dao);
+            boolean openedFresh = false; // true if WE opened the handle (must close after)
+            if (igDb == null) {
+                igDb = openInstagramDbFile(PikoUtils.getContext());
+                openedFresh = (igDb != null);
+            }
+            if (igDb != null) {
+                try {
+                    String   where;
+                    String[] args;
+                    if (serverId != null && !serverId.isEmpty() && clientId != null && !clientId.isEmpty()) {
+                        where = "server_item_id = ? OR client_item_id = ?";
+                        args  = new String[]{serverId, clientId};
+                    } else if (serverId != null && !serverId.isEmpty()) {
+                        where = "server_item_id = ?";
+                        args  = new String[]{serverId};
+                    } else {
+                        where = "client_item_id = ?";
+                        args  = new String[]{clientId};
+                    }
+                    Cursor c = igDb.query(
+                        "messages",
+                        new String[]{"text", "thread_id", "user_id", "timestamp", "message_type"},
+                        where, args, null, null, null, "1");
+                    if (c != null) {
+                        if (c.moveToFirst()) {
+                            content     = c.getString(0);
+                            String tId  = c.getString(1);
+                            if (tId  != null && !tId.isEmpty())  threadId    = tId;
+                            senderId    = c.getString(2);
+                            String ts   = c.getString(3);
+                            if (ts   != null && !ts.isEmpty()) {
+                                try { timestamp = Long.parseLong(ts) / 1000L; } catch (Exception ignored) {}
+                            }
+                            String mt   = c.getString(4);
+                            if (mt   != null) messageType = mt;
+                        }
+                        c.close();
+                    }
+                } finally {
+                    if (openedFresh) igDb.close();
+                }
+            }
+
+            PikoMessageDb vault = PikoMessageDb.getInstance(PikoUtils.getContext());
+
             if (content != null && !content.isEmpty()) {
-                notifyDeletion(null, content, "text");
+                // Fresh read from Instagram's DB — insert (or update if already there).
+                vault.insertOrIgnore(itemId, threadId, senderId, null, content, messageType, timestamp);
+            } else {
+                // Instagram's row had no text (media message, voice note, etc.) or
+                // reflection failed — fall back to what Hook 1/2 may have stored.
+                String stored = vault.getStoredContent(itemId);
+                if (stored != null) content = stored;
+            }
+
+            vault.markDeleted(itemId);
+
+            if (content != null && !content.isEmpty()) {
+                notifyDeletion(null, content, messageType);
+            } else {
+                // Still notify with a placeholder so the user knows a deletion happened.
+                notifyDeletion(null, "[message deleted]", messageType);
             }
 
         } catch (Exception e) {
             Logger.printException(() -> "SavedMessagesHook.onMessageHiddenFromDb: " + e);
         }
+    }
+
+    /**
+     * Returns Instagram's live SQLiteDatabase handle via the static singleton chain:
+     *   LX/0HR;.A06  (static LX/0HS;)
+     *   → LX/0HS;.A00()  → LX/0HR; instance
+     *   → LX/0HR;.A00    (SQLiteDatabase instance field)
+     *
+     * This is the same handle Instagram itself is using — no locking issues, no
+     * need to open a new connection.  Returns null on any reflection failure.
+     */
+    private static SQLiteDatabase getInstagramDb(Object dao) {
+        try {
+            ClassLoader cl = dao.getClass().getClassLoader();
+            // Binary class name for smali LX/0HR; is X.0HR
+            Class<?> ohrClass = cl.loadClass("X.0HR");
+            // A06: static field of type LX/0HS; — the connection-manager singleton
+            Field a06 = ohrClass.getDeclaredField("A06");
+            a06.setAccessible(true);
+            Object ohs = a06.get(null);
+            if (ohs == null) return null;
+            // LX/0HS;.A00() returns the open LX/0HR; (SQLiteOpenHelper wrapper) instance
+            Method getOhr = ohs.getClass().getDeclaredMethod("A00");
+            getOhr.setAccessible(true);
+            Object ohr = getOhr.invoke(ohs);
+            if (ohr == null) return null;
+            // LX/0HR;.A00 is the SQLiteDatabase instance field (not a method)
+            Field dbField = ohr.getClass().getDeclaredField("A00");
+            dbField.setAccessible(true);
+            Object db = dbField.get(ohr);
+            return (db instanceof SQLiteDatabase) ? (SQLiteDatabase) db : null;
+        } catch (Exception e) {
+            Logger.printException(() -> "SavedMessagesHook.getInstagramDb: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Fallback: open Instagram's direct.db file directly (read-only, WAL-safe).
+     * Caller must close the returned database.
+     */
+    private static SQLiteDatabase openInstagramDbFile(Context ctx) {
+        if (ctx == null) return null;
+        for (String name : new String[]{"direct.db", "direct_side_panel.db"}) {
+            try {
+                File f = ctx.getDatabasePath(name);
+                if (f != null && f.exists()) {
+                    return SQLiteDatabase.openDatabase(
+                        f.getAbsolutePath(), null,
+                        SQLiteDatabase.OPEN_READONLY | SQLiteDatabase.NO_LOCALIZED_COLLATORS);
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     // -------------------------------------------------------------------------

@@ -102,14 +102,14 @@ val saveDeletedMessagesPatch =
             //   v4xx: LX/1yN;.A0S(DirectThreadKey, String, String)V
             DirectItemDbHideFingerprint.method.apply {
                 val regs = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 3)
-                val r0 = regs.getFreeRegister()   // p1 = DirectThreadKey
+                val r0 = regs.getFreeRegister()   // p0 = DAO object (LX/0LJ;) — used to get SQLiteDatabase
                 val r1 = regs.getFreeRegister()   // p2 = server_item_id
                 val r2 = regs.getFreeRegister()   // p3 = client_item_id
 
                 addInstructions(
                     0,
                     """
-                    move-object/from16 v$r0, p1
+                    move-object/from16 v$r0, p0
                     move-object/from16 v$r1, p2
                     move-object/from16 v$r2, p3
                     invoke-static {v$r0, v$r1, v$r2}, $HOOK_CLASS->onMessageHiddenFromDb(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
