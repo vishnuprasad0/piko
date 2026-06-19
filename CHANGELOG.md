@@ -1,3 +1,9 @@
+## [1.2.0-dev.2](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.1...v1.2.0-dev.2) (2026-06-19)
+
+### 🐛 Bug Fixes
+
+* **dm:** restore unsent messages on MQTT path + intercept DB delete ([afca1c9](https://github.com/vishnuprasad0/piko/commit/afca1c9eb7fdbdf8c23b0dd4e656e972a9524b9f))
+
 ## [1.2.0-dev.1](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.7...v1.2.0-dev.1) (2026-06-19)
 
 ### 🐛 Bug Fixes
