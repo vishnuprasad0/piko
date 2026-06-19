@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-19T10:20:31",
-  "description": "## [1.2.0-dev.2](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.1...v1.2.0-dev.2) (2026-06-19)\n\n### 🐛 Bug Fixes\n\n* **dm:** restore unsent messages on MQTT path + intercept DB delete ([afca1c9](https://github.com/vishnuprasad0/piko/commit/afca1c9eb7fdbdf8c23b0dd4e656e972a9524b9f))",
-  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.2.0-dev.2/patches-1.2.0-dev.2.mpp",
-  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.2.0-dev.2/patches-1.2.0-dev.2.mpp.asc",
-  "version": "1.2.0-dev.2"
+  "created_at": "2026-06-19T10:50:49",
+  "description": "## [1.2.0-dev.3](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.2...v1.2.0-dev.3) (2026-06-19)\n\n### 🐛 Bug Fixes\n\n* **dm:** read deleted message from Instagram's own SQLite (SamMods approach) ([7cc0d18](https://github.com/vishnuprasad0/piko/commit/7cc0d1896a181b51bb8974adc7036390ff66a306))",
+  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.2.0-dev.3/patches-1.2.0-dev.3.mpp",
+  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.2.0-dev.3/patches-1.2.0-dev.3.mpp.asc",
+  "version": "1.2.0-dev.3"
 }

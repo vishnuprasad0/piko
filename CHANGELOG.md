@@ -1,3 +1,9 @@
+## [1.2.0-dev.3](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.2...v1.2.0-dev.3) (2026-06-19)
+
+### 🐛 Bug Fixes
+
+* **dm:** read deleted message from Instagram's own SQLite (SamMods approach) ([7cc0d18](https://github.com/vishnuprasad0/piko/commit/7cc0d1896a181b51bb8974adc7036390ff66a306))
+
 ## [1.2.0-dev.2](https://github.com/vishnuprasad0/piko/compare/v1.2.0-dev.1...v1.2.0-dev.2) (2026-06-19)
 
 ### 🐛 Bug Fixes
