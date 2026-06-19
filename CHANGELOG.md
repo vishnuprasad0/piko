@@ -1,3 +1,13 @@
+## [1.2.0-dev.1](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.7...v1.2.0-dev.1) (2026-06-19)
+
+### 🐛 Bug Fixes
+
+* **dm:** synthetic key fallback when item_id unresolvable on MQTT subclass ([0b32760](https://github.com/vishnuprasad0/piko/commit/0b327602dc6a515dcee5c2e143a285c48168b90c))
+
+### ✨ New Features
+
+* **dm:** anti-revoke in-place — deleted messages stay visible in thread ([9c23a46](https://github.com/vishnuprasad0/piko/commit/9c23a46b17b0df9915c1d8540d365516f1d60427))
+
 ## [1.1.1-dev.7](https://github.com/vishnuprasad0/piko/compare/v1.1.1-dev.6...v1.1.1-dev.7) (2026-06-17)
 
 ### 🐛 Bug Fixes
