@@ -146,15 +146,26 @@ public class DeletedMessagesActivity extends Activity {
                 metaView    = row.findViewWithTag("m");
             }
 
-            // [messageId, threadId, senderUsername, content, messageType, timestamp]
+            // [messageId, threadId, senderUsername, content, messageType, timestamp, senderId]
             String[] msg = messages.get(position);
             String sender    = msg[2];
             String content   = msg[3];
             String type      = msg[4];
+            String senderId  = msg.length > 6 ? msg[6] : null;
             long   timestamp = 0;
             try { timestamp = Long.parseLong(msg[5]); } catch (Exception ignored) {}
 
-            senderView.setText(sender != null && !sender.isEmpty() ? "@" + sender : "Unknown");
+            // Prefer the resolved username; fall back to the numeric sender id so the row is
+            // still attributable instead of an opaque "Unknown".
+            final String who;
+            if (sender != null && !sender.isEmpty()) {
+                who = "@" + sender;
+            } else if (senderId != null && !senderId.isEmpty()) {
+                who = "@" + senderId;
+            } else {
+                who = "Unknown";
+            }
+            senderView.setText(who);
             contentView.setText(content != null && !content.isEmpty() ? content : "[" + type + "]");
             metaView.setText(DateFormat.format("MMM dd, yyyy  HH:mm", new Date(timestamp)));
 

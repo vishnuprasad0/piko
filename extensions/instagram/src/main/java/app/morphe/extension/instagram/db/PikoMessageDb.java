@@ -63,6 +63,18 @@ public class PikoMessageDb extends SQLiteOpenHelper {
         onCreate(db);
     }
 
+    /**
+     * Insert a captured message. If the row already exists (same message_id), the insert is
+     * ignored — EXCEPT that any newly-arriving non-empty content / username / sender_id is
+     * written into the existing row when its corresponding column is still empty.
+     *
+     * This matters because the feature captures the same message from multiple hooks at
+     * different times: an early hook may store an empty-content placeholder, and the later
+     * authoritative source (e.g. Hook 4 reading Instagram's own "messages" table at delete
+     * time, or a username resolved after the fact) must be able to fill those blanks in.
+     * A plain CONFLICT_IGNORE would silently drop that better data, leaving the UI showing
+     * "[text]" / "Unknown".
+     */
     public void insertOrIgnore(String messageId, String threadId, String senderId,
                                String senderUsername, String content, String type, long timestamp) {
         if (messageId == null || threadId == null) return;
@@ -75,7 +87,26 @@ public class PikoMessageDb extends SQLiteOpenHelper {
         cv.put("content", content != null ? content : "");
         cv.put("message_type", type != null ? type : "unknown");
         cv.put("timestamp", timestamp);
-        db.insertWithOnConflict(TABLE, null, cv, SQLiteDatabase.CONFLICT_IGNORE);
+        long rowId = db.insertWithOnConflict(TABLE, null, cv, SQLiteDatabase.CONFLICT_IGNORE);
+
+        // rowId == -1 → conflict, row already existed. Backfill any empty columns with the
+        // newly-supplied non-empty values.
+        if (rowId == -1) {
+            fillIfEmpty(db, messageId, "content", content);
+            fillIfEmpty(db, messageId, "sender_username", senderUsername);
+            fillIfEmpty(db, messageId, "sender_id", senderId);
+        }
+    }
+
+    /** Update a single column on the existing row only when the new value is non-empty AND
+     *  the stored value is currently null/empty. Preserves is_deleted, timestamp, etc. */
+    private void fillIfEmpty(SQLiteDatabase db, String messageId, String column, String value) {
+        if (value == null || value.isEmpty()) return;
+        ContentValues cv = new ContentValues();
+        cv.put(column, value);
+        db.update(TABLE, cv,
+            "message_id = ? AND (" + column + " IS NULL OR " + column + " = '')",
+            new String[]{messageId});
     }
 
     public void markDeleted(String messageId) {
@@ -84,6 +115,23 @@ public class PikoMessageDb extends SQLiteOpenHelper {
         ContentValues cv = new ContentValues();
         cv.put("is_deleted", 1);
         db.update(TABLE, cv, "message_id = ?", new String[]{messageId});
+    }
+
+    /** Returns sender_username if non-empty, else sender_id (numeric), else null. */
+    public String getSenderDisplay(String messageId) {
+        if (messageId == null) return null;
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor c = db.query(TABLE, new String[]{"sender_username", "sender_id"},
+                "message_id = ?", new String[]{messageId}, null, null, null);
+        String result = null;
+        if (c.moveToFirst()) {
+            String uname = c.getString(0);
+            String uid   = c.getString(1);
+            result = (uname != null && !uname.isEmpty()) ? uname
+                   : (uid   != null && !uid.isEmpty())   ? uid : null;
+        }
+        c.close();
+        return result;
     }
 
     public String getStoredContent(String messageId) {
@@ -97,7 +145,7 @@ public class PikoMessageDb extends SQLiteOpenHelper {
         return (result != null && !result.isEmpty()) ? result : null;
     }
 
-    // Returns [messageId, threadId, senderUsername, content, messageType, timestamp]
+    // Returns [messageId, threadId, senderUsername, content, messageType, timestamp, senderId]
     public List<String[]> getDeletedMessages() {
         List<String[]> result = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
@@ -140,7 +188,8 @@ public class PikoMessageDb extends SQLiteOpenHelper {
             c.getString(c.getColumnIndexOrThrow("sender_username")),
             c.getString(c.getColumnIndexOrThrow("content")),
             c.getString(c.getColumnIndexOrThrow("message_type")),
-            String.valueOf(c.getLong(c.getColumnIndexOrThrow("timestamp")))
+            String.valueOf(c.getLong(c.getColumnIndexOrThrow("timestamp"))),
+            c.getString(c.getColumnIndexOrThrow("sender_id"))
         };
     }
 

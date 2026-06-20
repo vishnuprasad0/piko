@@ -53,23 +53,20 @@ val saveDeletedMessagesPatch =
             // --- Hook 2: Capture messages delivered via MQTT/MSys real-time sync ---
             // parseFromJson (Hook 1) only fires for REST/JSON loads (thread history).
             // Real-time messages arrive via MQTT Thrift encoding and never touch parseFromJson.
-            // A0P is the universal post-processing step called after every MQTT DirectItem is
-            // assembled from a sync delta; hooking its last success return covers that path.
-            // LX/0gF; extends LX/9ZA; (no new fields), so the same onMessageReceived handler
-            // works for both — it walks the superclass chain to find the LX/9ZA; fields.
+            // A0P is the post-processing step called after every MQTT DirectItem is assembled.
+            // Confirmed live on mt6855: A0P fires for new incoming DMs.
+            // We hook every RETURN_OBJECT that returns a non-null value (p0/this) so that
+            // obfuscation-driven instruction reordering doesn't shift which is "last".
             DirectItemPostprocessFingerprint.method.apply {
-                val returnObjInstruction = instructions.last { it.opcode == Opcode.RETURN_OBJECT }
-                val returnObjIndex = returnObjInstruction.location.index
-                val itemRegister = returnObjInstruction.registersUsed[0]
-
-                // A0P has many local registers; the success return uses v17 (= p0 = this).
-                // invoke-static only supports v0-v15 (4-bit register field), so move first.
-                val reg = getFreeRegisterProvider(index = returnObjIndex, numberOfFreeRegistersNeeded = 1).getFreeRegister()
-
+                // A0P is the MQTT post-processing step called for every incoming DirectItem.
+                // Inject at index 0: `this` (p0) is fully populated before A0P runs.
+                // onMessageReceived offloads work to a background HandlerThread so the
+                // MQTT delivery thread is never blocked (critical on MediaTek/mt6855).
+                val reg = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 1).getFreeRegister()
                 addInstructions(
-                    returnObjIndex,
+                    0,
                     """
-                    move-object/from16 v$reg, v$itemRegister
+                    move-object/from16 v$reg, p0
                     invoke-static {v$reg}, $HOOK_CLASS->onMessageReceived(Ljava/lang/Object;)V
                     """.trimIndent(),
                 )

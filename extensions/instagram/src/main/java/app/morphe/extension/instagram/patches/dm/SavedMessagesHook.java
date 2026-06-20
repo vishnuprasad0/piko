@@ -97,15 +97,49 @@ public class SavedMessagesHook {
     // Hook 2 fires from LX/0gF;.A0P (MQTT/MSys real-time delivery).
     // Both pass the item as Object; reflection extracts v426 fields listed above.
     // -------------------------------------------------------------------------
-    public static void onMessageReceived(Object item) {
-        try {
-            if (!Pref.saveDeletedMessages()) return;
-            if (item == null) return;
+    // Background thread for all Hook 1/2 work so the MQTT delivery thread is never blocked.
+    private static android.os.HandlerThread sWorkerThread;
+    private static android.os.Handler sWorker;
 
-            // DIAGNOSTIC: prove the hook fires and reveal the real object shape.
-            // printException always emits (unaffected by debug-log setting).
-            final String dcls = item.getClass().getName();
-            Logger.printException(() -> "SavedMessagesHook ENTER item=" + dcls);
+    private static synchronized android.os.Handler getWorker() {
+        if (sWorker == null) {
+            sWorkerThread = new android.os.HandlerThread("piko-dm-hook");
+            sWorkerThread.start();
+            sWorker = new android.os.Handler(sWorkerThread.getLooper());
+        }
+        return sWorker;
+    }
+
+    // Dedup set: item_ids already queued. Checked on calling thread (cheap) to avoid
+    // posting duplicate Runnables. Bounded to 2000 entries via eldest-entry eviction.
+    private static final java.util.Map<String, Boolean> SEEN_ITEM_IDS =
+        java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<String, Boolean>() {
+            @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Boolean> e) {
+                return size() > 2000;
+            }
+        });
+
+    public static void onMessageReceived(final Object item) {
+        // DIAGNOSTIC: unconditional first-line log to confirm A0P fires at all.
+        final String dbgCls = (item == null) ? "null" : item.getClass().getName();
+        Logger.printException(() -> "SavedMessagesHook A0P=" + dbgCls);
+        // Called from the MQTT thread — must return instantly. All reflection/DB work
+        // is posted to sWorker (background HandlerThread).
+        if (item == null) return;
+        if (!Pref.saveDeletedMessages()) { Logger.printException(() -> "SavedMessagesHook pref=off"); return; }
+        // Class guard: only X.* (obfuscated IG classes) are DirectItem candidates.
+        if (!item.getClass().getName().startsWith("X.")) { Logger.printException(() -> "SavedMessagesHook cls-fail=" + dbgCls); return; }
+
+        getWorker().post(new Runnable() { @Override public void run() {
+            processReceivedItem(item);
+        }});
+    }
+
+    private static void processReceivedItem(Object item) {
+        try {
+            // DIAGNOSTIC: prove the hook fires.
+            final String cls = item.getClass().getName();
+            Logger.printException(() -> "SavedMessagesHook ENTER item=" + cls);
             dumpUnknownItemOnce(item);
 
             // v426 field names (confirmed from dexdump classes12.dex LX/0gL;.A00):
@@ -119,9 +153,18 @@ public class SavedMessagesHook {
             //   item_id        → getter A0l(), thread_key → A16/A18
             String messageId  = reflectString(item, "item_id", "A13");
             if (messageId == null) messageId = reflectStringOrInvoke(item, "item_id", "A0l");
+            // Dedup: A0P is called for every historical inbox item on each sync.
+            if (messageId != null && SEEN_ITEM_IDS.put(messageId, Boolean.TRUE) != null) return;
             String threadId   = reflectThreadIdFromItem(item);
             String senderId   = reflectString(item, "user_id", "A1M");
-            String senderUser = null;
+            String senderUser = resolveSenderUsername(item, senderId);
+            // MQTT path only delivers sender_id, not a full UserInfo object.
+            // Try to resolve username from IG's user cache; fall back to sender_id.
+            if (senderUser == null && senderId != null) {
+                senderUser = resolveUsernameFromCache(senderId);
+            }
+            // DIAGNOSTIC: log UserInfo candidates when username not found.
+            if (senderUser == null) { dumpUserInfoCandidatesOnce(item, senderId); }
             String content    = null;
             String type       = null;
             long   timestamp  = System.currentTimeMillis();
@@ -222,7 +265,7 @@ public class SavedMessagesHook {
             }
 
         } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.onMessageReceived: " + e);
+            Logger.printException(() -> "SavedMessagesHook.processReceivedItem: " + e);
         }
     }
 
@@ -402,11 +445,18 @@ public class SavedMessagesHook {
             String itemId = (serverId != null && !serverId.isEmpty()) ? serverId : clientId;
             if (itemId == null) return;
 
+            // DIAGNOSTIC: dump DAO fields once to find message cache / SQLiteDatabase handle.
+            dumpDaoOnce(dao, serverId, clientId);
+
             String content     = null;
             String threadId    = "";
             String senderId    = null;
             String messageType = "text";
             long   timestamp   = System.currentTimeMillis();
+
+            // DIAGNOSTIC (one-shot): dump recent rows from the MSYS deleted-messages table so we
+            // can confirm the deleted_message_payload blob is text-extractable (v426 MSYS).
+            dumpDeletedPayloadOnce(PikoUtils.getContext());
 
             // --- Read from Instagram's own "messages" table before the DELETE fires ---
             SQLiteDatabase igDb = getInstagramDb(dao);
@@ -467,12 +517,269 @@ public class SavedMessagesHook {
             }
             vault.markDeleted(itemId);
 
-            String notifBody = (content != null && !content.isEmpty())
-                    ? content : describeMediaType(messageType);
-            notifyDeletion(null, notifBody, messageType);
+            // DIAGNOSTIC: log what ended up stored in PikoMessageDb for this deletion.
+            String pikoContent = vault.getStoredContent(itemId);
+            final String dbgId = itemId.length() > 8 ? itemId.substring(0, 8) : itemId;
+            Logger.printException(() -> "Hook4 id=" + dbgId + " piko=" + pikoContent);
+
+            String notifBody = (pikoContent != null && !pikoContent.isEmpty())
+                    ? pikoContent : describeMediaType(messageType);
+            // Try to get sender info from PikoMessageDb (stored by Hook 2).
+            String storedSender = vault.getSenderDisplay(itemId);
+            notifyDeletion(storedSender, notifBody, messageType);
 
         } catch (Exception e) {
             Logger.printException(() -> "SavedMessagesHook.onMessageHiddenFromDb: " + e);
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean USER_INFO_DUMPED =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    private static void dumpUserInfoCandidatesOnce(Object item, String senderId) {
+        if (!USER_INFO_DUMPED.compareAndSet(false, true)) return;
+        try {
+            Logger.printException(() -> "UINF senderId=" + senderId + " cls=" + item.getClass().getName());
+            // Dump all non-primitive fields on the item and its superclasses so we can
+            // identify which field holds the UserInfo object (for username extraction).
+            Class<?> cls = item.getClass();
+            while (cls != null && cls != Object.class) {
+                final String cn = cls.getName();
+                for (Field f : cls.getDeclaredFields()) {
+                    if (f.getType().isPrimitive()) continue;
+                    if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                    if (f.getType() == String.class || f.getType() == java.lang.Boolean.class
+                            || f.getType() == java.lang.Long.class || f.getType() == java.lang.Integer.class) continue;
+                    f.setAccessible(true);
+                    Object v;
+                    try { v = f.get(item); } catch (Exception e2) { continue; }
+                    if (v == null) continue;
+                    final String fn = f.getName();
+                    final String vt = v.getClass().getName();
+                    Logger.printException(() -> "UINF " + cn + "." + fn + ":" + vt);
+                    // If this object has any String fields, log them (candidate username).
+                    for (Field sf : v.getClass().getDeclaredFields()) {
+                        if (sf.getType() != String.class) continue;
+                        sf.setAccessible(true);
+                        Object sv;
+                        try { sv = sf.get(v); } catch (Exception e2) { continue; }
+                        if (sv instanceof String && !((String)sv).isEmpty()) {
+                            final String sfn = sf.getName();
+                            final String svv = (String) sv;
+                            Logger.printException(() -> "UINF   ." + sfn + "=" + svv);
+                        }
+                    }
+                }
+                cls = cls.getSuperclass();
+            }
+        } catch (Exception e) {
+            Logger.printException(() -> "UINF dump failed: " + e);
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean DAO_DUMPED =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /** One-shot: dump all fields of the DAO object (and superclasses) to find message cache or DB handle. */
+    private static void dumpDaoOnce(Object dao, String serverId, String clientId) {
+        if (!DAO_DUMPED.compareAndSet(false, true)) return;
+        try {
+            Logger.printException(() -> "DAODUMP serverId=" + serverId + " clientId=" + clientId
+                    + " dao=" + (dao == null ? "null" : dao.getClass().getName()));
+            if (dao == null) return;
+            Class<?> cls = dao.getClass();
+            while (cls != null && !cls.equals(Object.class)) {
+                final String clsName = cls.getName();
+                for (Field f : cls.getDeclaredFields()) {
+                    f.setAccessible(true);
+                    Object val;
+                    try { val = f.get(dao); } catch (Exception ex) { val = "<err:" + ex.getMessage() + ">"; }
+                    final String fieldDesc = "  " + clsName + "." + f.getName() + ":" + f.getType().getSimpleName() + " = " + summarize(val);
+                    Logger.printException(() -> "DAODUMP " + fieldDesc);
+                }
+                cls = cls.getSuperclass();
+            }
+        } catch (Exception e) {
+            Logger.printException(() -> "DAODUMP error: " + e);
+        }
+    }
+
+    private static String summarize(Object val) {
+        if (val == null) return "null";
+        if (val instanceof String) return "\"" + val + "\"";
+        if (val instanceof SQLiteDatabase) return "<SQLiteDatabase path=" + ((SQLiteDatabase)val).getPath() + ">";
+        String s = val.toString();
+        return s.length() > 120 ? s.substring(0, 120) + "…" : s;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean DB_LAYOUT_DUMPED =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /**
+     * One-shot diagnostic: walk every *.db under the app's databases dir, list each DB's tables,
+     * and for any table whose name/columns look message-related, log its columns. Lets us find
+     * IG's real DM store (path + table + columns) on v426/Android 15 from inside the app process,
+     * since the app is not debuggable and run-as is blocked.
+     */
+    private static void dumpDatabasesLayoutOnce(Context ctx) {
+        try {
+            if (ctx == null) return;
+            if (!DB_LAYOUT_DUMPED.compareAndSet(false, true)) return;
+            File dbDir = ctx.getDatabasePath("x").getParentFile();
+            if (dbDir == null || !dbDir.exists()) {
+                Logger.printException(() -> "DBLAYOUT: databases dir missing: " + dbDir);
+                return;
+            }
+            File[] all = dbDir.listFiles();
+            StringBuilder sb = new StringBuilder("DBLAYOUT dir=").append(dbDir).append('\n');
+            if (all != null) {
+                for (File f : all) {
+                    sb.append("  FILE ").append(f.getName()).append(" (").append(f.length()).append(" b)\n");
+                    if (!f.getName().endsWith(".db")) continue;
+                    SQLiteDatabase db = null;
+                    try {
+                        db = SQLiteDatabase.openDatabase(f.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+                        Cursor tc = db.rawQuery(
+                            "SELECT name FROM sqlite_master WHERE type='table'", null);
+                        while (tc.moveToNext()) {
+                            String table = tc.getString(0);
+                            sb.append("      TABLE ").append(table);
+                            String lt = table.toLowerCase();
+                            if (lt.contains("message") || lt.contains("thread") || lt.contains("item")
+                                    || lt.contains("user") || lt.contains("msys")) {
+                                try {
+                                    Cursor cc = db.rawQuery("PRAGMA table_info(" + table + ")", null);
+                                    sb.append(" [");
+                                    while (cc.moveToNext()) sb.append(cc.getString(1)).append(',');
+                                    sb.append(']');
+                                    cc.close();
+                                } catch (Exception ignored) {}
+                            }
+                            sb.append('\n');
+                        }
+                        tc.close();
+                    } catch (Exception e) {
+                        sb.append("      <open failed: ").append(e).append(">\n");
+                    } finally {
+                        if (db != null) db.close();
+                    }
+                }
+            }
+            final String out = sb.toString();
+            Logger.printException(() -> out);
+        } catch (Exception e) {
+            Logger.printException(() -> "dumpDatabasesLayoutOnce: " + e);
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean DEL_PAYLOAD_DUMPED =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /** Locate the MSYS reverb_db (holds local_message_persistence_store*). WAL → concurrent read OK. */
+    private static File findReverbDb(Context ctx) {
+        if (ctx == null) return null;
+        File dbDir = ctx.getDatabasePath("x").getParentFile();
+        if (dbDir == null) return null;
+        File[] all = dbDir.listFiles();
+        if (all == null) return null;
+        for (File f : all) {
+            if (f.getName().startsWith("reverb_db_") && f.getName().endsWith(".db")) return f;
+        }
+        return null;
+    }
+
+    /** Extract printable ASCII runs (length >= 3) from a blob, joined by '|'. */
+    private static String printableRuns(byte[] b) {
+        if (b == null) return "";
+        StringBuilder sb = new StringBuilder();
+        StringBuilder run = new StringBuilder();
+        for (byte value : b) {
+            int c = value & 0xFF;
+            if (c >= 0x20 && c < 0x7F) {
+                run.append((char) c);
+            } else {
+                if (run.length() >= 3) { if (sb.length() > 0) sb.append('|'); sb.append(run); }
+                run.setLength(0);
+            }
+        }
+        if (run.length() >= 3) { if (sb.length() > 0) sb.append('|'); sb.append(run); }
+        return sb.toString();
+    }
+
+    private static void dumpDeletedPayloadOnce(Context ctx) {
+        try {
+            if (!DEL_PAYLOAD_DUMPED.compareAndSet(false, true)) return;
+            File reverb = findReverbDb(ctx);
+            if (reverb == null) { Logger.printException(() -> "DELPAYLOAD: reverb_db not found"); return; }
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(reverb.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+            try {
+                // Log all reverb_db files found (there may be multiple per account).
+                File dbDir = ctx.getDatabasePath("x").getParentFile();
+                if (dbDir != null) {
+                    File[] all = dbDir.listFiles();
+                    if (all != null) {
+                        StringBuilder allDbs = new StringBuilder("DELPAYLOAD all reverb_dbs: ");
+                        for (File f : all) { if (f.getName().startsWith("reverb_db_")) allDbs.append(f.getName()).append(" "); }
+                        final String allDbsOut = allDbs.toString();
+                        Logger.printException(() -> allDbsOut);
+                    }
+                }
+
+                // Schema: log one entry per table with row count so logcat doesn't truncate.
+                Cursor tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", null);
+                while (tables.moveToNext()) {
+                    String tbl = tables.getString(0);
+                    Cursor cnt = db.rawQuery("SELECT COUNT(*) FROM " + tbl, null);
+                    long rowCnt = cnt.moveToFirst() ? cnt.getLong(0) : -1;
+                    cnt.close();
+                    Cursor cols = db.rawQuery("PRAGMA table_info(" + tbl + ")", null);
+                    StringBuilder tblInfo = new StringBuilder("DELPAYLOAD TABLE ").append(tbl).append(" (").append(rowCnt).append(" rows) cols: ");
+                    while (cols.moveToNext()) { tblInfo.append(cols.getString(1)).append(":").append(cols.getString(2)).append(" "); }
+                    cols.close();
+                    final String tblOut = tblInfo.toString();
+                    Logger.printException(() -> tblOut);
+                }
+                tables.close();
+
+                // Dump last 3 rows from main messages table (message is still there when Hook 4 fires).
+                dumpTableRows(db, "local_message_persistence_store", "rowid DESC");
+                // Also try deleted table in case IG already wrote it.
+                dumpTableRows(db, "local_message_persistence_store_deleted_messages", "deletion_timestamp_ms DESC");
+            } finally {
+                db.close();
+            }
+        } catch (Exception e) {
+            Logger.printException(() -> "dumpDeletedPayloadOnce: " + e);
+        }
+    }
+
+    private static void dumpTableRows(SQLiteDatabase db, String table, String order) {
+        try {
+            Cursor c = db.query(table, null, null, null, null, null, order, "3");
+            String[] cols = c.getColumnNames();
+            int rowNum = 0;
+            while (c.moveToNext()) {
+                rowNum++;
+                final int rn = rowNum;
+                StringBuilder sb = new StringBuilder("DELPAYLOAD ").append(table).append(" row").append(rn).append(":\n");
+                for (int i = 0; i < cols.length; i++) {
+                    int type = c.getType(i);
+                    if (type == Cursor.FIELD_TYPE_BLOB) {
+                        byte[] blob = c.getBlob(i);
+                        sb.append("  ").append(cols[i]).append(" (blob ")
+                          .append(blob == null ? 0 : blob.length).append("b): ")
+                          .append(printableRuns(blob)).append('\n');
+                    } else {
+                        sb.append("  ").append(cols[i]).append(" = ").append(c.getString(i)).append('\n');
+                    }
+                }
+                final String rowOut = sb.toString();
+                Logger.printException(() -> rowOut);
+            }
+            if (rowNum == 0) Logger.printException(() -> "DELPAYLOAD " + table + ": 0 rows");
+            c.close();
+        } catch (Exception e) {
+            Logger.printException(() -> "DELPAYLOAD dumpTableRows(" + table + "): " + e);
         }
     }
 
@@ -652,6 +959,53 @@ public class SavedMessagesHook {
         }
     }
 
+    /**
+     * Tries to resolve a real username for senderId by querying Instagram's local user
+     * cache databases. IG stores DM participant profiles in SQLite (user.db or similar).
+     * Returns null if the DB isn't found or the user isn't cached.
+     */
+    private static String resolveUsernameFromCache(String senderId) {
+        try {
+            Context ctx = PikoUtils.getContext();
+            if (ctx == null) return null;
+            File dbDir = ctx.getDatabasePath("x").getParentFile();
+            if (dbDir == null) return null;
+            String[] candidates = {"user.db", "users.db", "igdb.db", "instagram.db",
+                                   "user_cache.db", "profile.db", "direct_bootstrap.db"};
+            for (String name : candidates) {
+                File f = new File(dbDir, name);
+                if (!f.exists()) continue;
+                try {
+                    SQLiteDatabase db = SQLiteDatabase.openDatabase(
+                            f.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+                    for (String[] spec : new String[][]{
+                            {"users", "username", "pk"},
+                            {"users", "username", "id"},
+                            {"user", "username", "pk"},
+                            {"user", "username", "user_id"},
+                            {"participants", "username", "pk"},
+                    }) {
+                        try {
+                            Cursor c = db.query(spec[0], new String[]{spec[1]},
+                                    spec[2] + " = ?", new String[]{senderId},
+                                    null, null, null, "1");
+                            if (c != null) {
+                                String uname = null;
+                                if (c.moveToFirst()) uname = c.getString(0);
+                                c.close();
+                                if (uname != null && !uname.isEmpty()) { db.close(); return uname; }
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    db.close();
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception e) {
+            Logger.printException(() -> "resolveUsernameFromCache: " + e);
+        }
+        return null;
+    }
+
     // -------------------------------------------------------------------------
     // Reflection helpers
     // -------------------------------------------------------------------------
@@ -685,9 +1039,93 @@ public class SavedMessagesHook {
         return null;
     }
 
+    /**
+     * Resolve the sender's username by reflecting the sender UserInfo entity off the DirectItem.
+     *
+     * Historic mapping (see CLAUDE.md "Obfuscated field mapping pattern"):
+     *   DirectItem.A02 → sender UserInfo entity, with sub-fields A00 = user_id, A01 = username.
+     * Obfuscated names rotate per build, so we DON'T rely on a single hardcoded name. Strategy:
+     *   1. Try known/candidate UserInfo field names on the item (walking the superclass chain).
+     *   2. If none resolve, scan fields by type for a "UserInfo"/"User" object near the user_id.
+     *   3. On the UserInfo object, try candidate username sub-fields, then fall back to a
+     *      heuristic: a String field that is NOT all-digits (user_id is numeric) and looks like
+     *      a handle. The matching user_id confirms we picked the right entity.
+     *
+     * Returns null if no username can be found (caller stores empty; UI falls back to sender_id).
+     * The first time an item shape is seen, dumpUnknownItemOnce() logs every field so the exact
+     * v426 names can be confirmed from logcat (tag: piko) and pinned in CANDIDATE_* below.
+     */
+    private static String resolveSenderUsername(Object item, String senderId) {
+        try {
+            if (item == null) return null;
+
+            // 1 + 2: locate the sender UserInfo entity.
+            Object userInfo = null;
+            for (String f : CANDIDATE_USERINFO_FIELDS) {
+                Object v = getFieldValue(item, f);
+                if (v != null && looksLikeUserInfo(v, senderId)) { userInfo = v; break; }
+            }
+            if (userInfo == null) {
+                Object byType = findFieldByType(item, "userinfo");
+                if (looksLikeUserInfo(byType, senderId)) userInfo = byType;
+            }
+            if (userInfo == null) {
+                Object byType = findFieldByType(item, "user");
+                if (looksLikeUserInfo(byType, senderId)) userInfo = byType;
+            }
+            if (userInfo == null) return null;
+
+            // 3: read the username sub-field.
+            for (String f : CANDIDATE_USERNAME_FIELDS) {
+                Object v = getFieldValue(userInfo, f);
+                if (isUsernameLike(v)) return (String) v;
+            }
+            // Heuristic fallback: first non-numeric String field on the UserInfo object.
+            Class<?> cls = userInfo.getClass();
+            while (cls != null && cls != Object.class) {
+                for (Field f : cls.getDeclaredFields()) {
+                    if (f.getType() != String.class) continue;
+                    f.setAccessible(true);
+                    Object v;
+                    try { v = f.get(userInfo); } catch (Exception e) { continue; }
+                    if (isUsernameLike(v)) return (String) v;
+                }
+                cls = cls.getSuperclass();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    // v426 candidate field names — confirm/extend from the ObjectBrowser dump in logcat.
+    private static final String[] CANDIDATE_USERINFO_FIELDS = {"A02", "A1L", "A0X", "A0Z"};
+    private static final String[] CANDIDATE_USERNAME_FIELDS = {"A01", "A0a", "A0Y", "username"};
+
+    /** A UserInfo-like object exposes the matching user_id (when known) on a sub-field. */
+    private static boolean looksLikeUserInfo(Object obj, String senderId) {
+        if (obj == null) return false;
+        if (obj instanceof String || obj instanceof Number || obj instanceof Boolean) return false;
+        if (senderId == null || senderId.isEmpty()) return true; // can't cross-check; accept candidate
+        for (String f : new String[]{"A00", "A01", "id", "pk", "user_id"}) {
+            Object v = getFieldValue(obj, f);
+            if (v != null && senderId.equals(v.toString())) return true;
+        }
+        return false;
+    }
+
+    /** A plausible username: non-empty String that is not purely numeric (those are IDs). */
+    private static boolean isUsernameLike(Object v) {
+        if (!(v instanceof String)) return false;
+        String s = ((String) v).trim();
+        return !s.isEmpty() && !s.matches("\\d+");
+    }
+
     /** Try known JSON key name first, fall back to ProGuard obfuscated name. */
     private static String reflectString(Object obj, String jsonKey, String obfName) {
-        Object val = reflectRaw(obj, jsonKey, obfName);
+        // Use type-aware lookup: if the obfuscated name maps to a boolean on the concrete
+        // class but a String on a superclass (e.g. A13 on LX/0gF; vs LX/9ZA;), skip the
+        // wrong-type field and find the String. Falls back to plain lookup for the jsonKey.
+        Object val = getFieldValueByType(obj, obfName, String.class);
+        if (val == null) val = getFieldValue(obj, jsonKey);
         return val instanceof String ? (String) val : null;
     }
 
@@ -750,6 +1188,29 @@ public class SavedMessagesHook {
             } catch (Exception e) {
                 return null;
             }
+        }
+        return null;
+    }
+
+    /**
+     * Like getFieldValue but skips fields whose declared type is not assignable from
+     * expectedType. Needed when the same obfuscated field name appears on both the
+     * concrete class (wrong type, e.g. boolean A13 on LX/0gF;) and a superclass
+     * (correct type, e.g. String A13 on LX/9ZA;). Plain getFieldValue would return
+     * the concrete-class version first, giving the wrong value.
+     */
+    private static Object getFieldValueByType(Object obj, String fieldName, Class<?> expectedType) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            try {
+                Field f = cls.getDeclaredField(fieldName);
+                if (expectedType.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    try { return f.get(obj); } catch (IllegalAccessException ignored) {}
+                }
+                // Wrong declared type or inaccessible — skip to superclass
+            } catch (NoSuchFieldException ignored) {}
+            cls = cls.getSuperclass();
         }
         return null;
     }
