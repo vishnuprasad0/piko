@@ -70,18 +70,6 @@ internal object DirectItemPostprocessFingerprint : Fingerprint(
 )
 
 /**
- * Targets the TextWatcher attached to the DM compose bar EditText.
- * Same class as DisableTypingStatusPatch's OnTextChangedFingerprint — we
- * duplicate the fingerprint here so we can access classDef independently
- * and inject the compose-bar button setup without touching the typing patch.
- */
-internal object DirectComposeBarTextWatcherFingerprint : Fingerprint(
-    name = "onTextChanged",
-    parameters = listOf("Ljava/lang/CharSequence;", "I", "I", "I"),
-    returnType = "V",
-)
-
-/**
  * Targets the SQLite DAO "delete/hide DirectItem by ID" method across versions:
  *   v14.70 (v408): LX/0LJ;.A0P(DirectThreadKey, String, String)V  (classes2.dex)
  *   v14.90 (v4xx): LX/1yN;.A0S(DirectThreadKey, String, String)V  (classes2.dex)

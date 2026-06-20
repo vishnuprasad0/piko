@@ -30,6 +30,8 @@ import app.morphe.extension.shared.ui.Dim;
 public class DeletedMessagesActivity extends Activity {
 
     private List<String[]> messages;
+    private String threadTitle;
+    private MessageAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +40,7 @@ public class DeletedMessagesActivity extends Activity {
         // When launched from compose-bar button, filter to that thread only.
         // When launched from Piko settings, show all deleted messages.
         String threadId = getIntent().getStringExtra("thread_id");
+        threadTitle = getIntent().getStringExtra("thread_title");
         messages = threadId != null
             ? PikoMessageDb.getInstance(this).getDeletedMessagesForThread(threadId)
             : PikoMessageDb.getInstance(this).getDeletedMessages();
@@ -74,6 +77,31 @@ public class DeletedMessagesActivity extends Activity {
 
         toolbar.addView(back);
         toolbar.addView(title);
+
+        // "Clear" action — wipes this chat's saved messages (or all, from settings entry).
+        final String clearThreadId = threadId;
+        TextView clear = new TextView(this);
+        clear.setText("Clear");
+        clear.setTextSize(TypedValue.COMPLEX_UNIT_PX, PikoUtils.spToPixels(16));
+        clear.setTextColor(UI.getThemedColour());
+        clear.setPadding(Dim.dp8, Dim.dp8, Dim.dp8, Dim.dp8);
+        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0);
+        clearParams.gravity = Gravity.CENTER_VERTICAL;
+        clear.setLayoutParams(clearParams);
+        // push Clear to the right
+        LinearLayout.LayoutParams titleP = (LinearLayout.LayoutParams) title.getLayoutParams();
+        titleP.weight = 1; title.setLayoutParams(titleP);
+        clear.setOnClickListener(v -> new android.app.AlertDialog.Builder(this)
+            .setMessage(clearThreadId != null ? "Clear deleted messages for this chat?" : "Clear ALL saved deleted messages?")
+            .setPositiveButton("Clear", (d, w) -> {
+                PikoMessageDb.getInstance(this).clearSaved(clearThreadId);
+                messages.clear();
+                recreate();
+            })
+            .setNegativeButton("Cancel", null)
+            .show());
+        toolbar.addView(clear);
         root.addView(toolbar);
 
         if (messages.isEmpty()) {
@@ -89,8 +117,32 @@ public class DeletedMessagesActivity extends Activity {
             ));
         } else {
             ListView listView = new ListView(this);
-            listView.setAdapter(new MessageAdapter());
+            adapter = new MessageAdapter();
+            listView.setAdapter(adapter);
             listView.setDividerHeight(1);
+            listView.setOnItemClickListener((parent, view, pos, idLong) -> {
+                String[] m = messages.get(pos);
+                String c = m[3];
+                if (c != null && c.startsWith("http")) {
+                    try {
+                        startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(c)));
+                    } catch (Exception ignored) {}
+                }
+            });
+            listView.setOnItemLongClickListener((parent, view, pos, idLong) -> {
+                String[] m = messages.get(pos);
+                new android.app.AlertDialog.Builder(this)
+                    .setMessage("Delete this saved message?")
+                    .setPositiveButton("Delete", (d, w) -> {
+                        PikoMessageDb.getInstance(this).deleteSaved(m[0]); // m[0] = message_id
+                        messages.remove(pos);
+                        adapter.notifyDataSetChanged();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+                return true;
+            });
             root.addView(listView, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -104,6 +156,24 @@ public class DeletedMessagesActivity extends Activity {
         });
 
         setContentView(root);
+    }
+
+    private static String mediaLabel(String type) {
+        if (type == null) return "[media]";
+        switch (type) {
+            case "media":
+            case "image":          return "[photo]";
+            case "video":          return "[video]";
+            case "voice_media":
+            case "audio":          return "[voice message]";
+            case "animated_media": return "[GIF]";
+            case "reel_share":     return "[reel]";
+            case "story_share":    return "[story]";
+            case "media_share":    return "[post]";
+            case "clip":
+            case "xma_clip":       return "[reel]";
+            default:               return "[" + type + "]";
+        }
     }
 
     private class MessageAdapter extends BaseAdapter {
@@ -160,13 +230,21 @@ public class DeletedMessagesActivity extends Activity {
             final String who;
             if (sender != null && !sender.isEmpty()) {
                 who = "@" + sender;
+            } else if (threadTitle != null && !threadTitle.isEmpty()) {
+                who = threadTitle; // chat title from action bar (participant's name)
             } else if (senderId != null && !senderId.isEmpty()) {
                 who = "@" + senderId;
             } else {
                 who = "Unknown";
             }
             senderView.setText(who);
-            contentView.setText(content != null && !content.isEmpty() ? content : "[" + type + "]");
+            boolean isMediaUrl = content != null && content.startsWith("http");
+            if (isMediaUrl) {
+                contentView.setText(mediaLabel(type) + "  ·  tap to view");
+            } else {
+                contentView.setText(content != null && !content.isEmpty() ? content
+                        : (type != null ? "[" + type + "]" : "[deleted]"));
+            }
             metaView.setText(DateFormat.format("MMM dd, yyyy  HH:mm", new Date(timestamp)));
 
             return row;

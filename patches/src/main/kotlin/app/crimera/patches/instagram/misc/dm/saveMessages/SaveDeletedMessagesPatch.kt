@@ -6,6 +6,7 @@
 
 package app.crimera.patches.instagram.misc.dm.saveMessages
 
+import app.crimera.patches.instagram.misc.actionBar.dmActionBarButton.dmActionBarButtonPatch
 import app.crimera.patches.instagram.misc.settings.settingsPatch
 import app.crimera.patches.instagram.utils.Constants.COMPATIBILITY_INSTAGRAM
 import app.crimera.patches.instagram.utils.Constants.INTEGRATIONS_PACKAGE
@@ -25,7 +26,7 @@ val saveDeletedMessagesPatch =
         name = "Save deleted messages",
         description = "Captures incoming DMs locally as they arrive from the server and marks them when the sender deletes them.",
     ) {
-        dependsOn(settingsPatch)
+        dependsOn(settingsPatch, dmActionBarButtonPatch)
         compatibleWith(COMPATIBILITY_INSTAGRAM)
 
         execute {
@@ -68,22 +69,6 @@ val saveDeletedMessagesPatch =
                     """
                     move-object/from16 v$reg, p0
                     invoke-static {v$reg}, $HOOK_CLASS->onMessageReceived(Ljava/lang/Object;)V
-                    """.trimIndent(),
-                )
-            }
-
-            // --- Hook 3: Inject "View deleted messages" button into compose bar ---
-            // onTextChanged fires every time the user types in the DM input.
-            // Our hook checks if the button is already present and, if not, adds it.
-            // p0 = the TextWatcher instance (used to locate the EditText via reflection).
-            DirectComposeBarTextWatcherFingerprint.method.apply {
-                val reg = getFreeRegisterProvider(index = 0, numberOfFreeRegistersNeeded = 1).getFreeRegister()
-
-                addInstructions(
-                    0,
-                    """
-                    move-object/from16 v$reg, p0
-                    invoke-static {v$reg}, $HOOK_CLASS->addDeletedMessagesButton(Ljava/lang/Object;)V
                     """.trimIndent(),
                 )
             }

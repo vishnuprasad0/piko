@@ -6,18 +6,11 @@
 
 package app.morphe.extension.instagram.patches.dm;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.LinearLayout;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -26,7 +19,6 @@ import java.lang.reflect.Method;
 import app.morphe.extension.crimera.PikoUtils;
 import app.morphe.extension.instagram.db.PikoMessageDb;
 import app.morphe.extension.instagram.utils.Pref;
-import app.morphe.extension.shared.Logger;
 
 /**
  * Runtime hooks for the "Save deleted messages" feature.
@@ -89,7 +81,86 @@ import app.morphe.extension.shared.Logger;
 @SuppressWarnings("unused")
 public class SavedMessagesHook {
 
-    private static final String BUTTON_TAG = "piko_deleted_msgs_btn";
+    /** Silent logger — writes to logcat (tag "piko") only, never surfaces an on-screen toast. */
+    private static void piko(String msg) {
+        android.util.Log.e("piko", msg);
+    }
+
+    /** Most-recently-seen DM thread id; used by the action-bar button to scope the screen. */
+    private static volatile String sCurrentThreadId;
+    /** Title shown in the open chat's action bar = the participant's username (1:1 chats). */
+    private static volatile String sCurrentThreadTitle;
+
+    /** Called from DMActionBar with the chat title (the other user's name/username). The MQTT
+     *  delivery path carries no username, so this on-screen title is our reliable source. */
+    public static void noteThreadTitle(String title) {
+        if (title == null || title.trim().isEmpty()) return;
+        sCurrentThreadTitle = title.trim();
+        // Persist for the current thread so the all-chats screen and notifications show a name too.
+        try {
+            if (sCurrentThreadId != null && !sCurrentThreadId.isEmpty()) {
+                PikoMessageDb.getInstance(PikoUtils.getContext())
+                        .setThreadUsername(sCurrentThreadId, sCurrentThreadTitle);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /** Called when a chat is opened (from the action bar) with the resolved thread_id + title.
+     *  Records both so unsend notifications in this chat can show the sender's name, even if the
+     *  user never opens the deleted-messages screen. */
+    public static void noteThreadOpen(String threadId, String title) {
+        if (threadId != null && !threadId.isEmpty()) sCurrentThreadId = threadId;
+        if (title != null && !title.trim().isEmpty()) {
+            sCurrentThreadTitle = title.trim();
+            try {
+                String tid = (threadId != null && !threadId.isEmpty()) ? threadId : sCurrentThreadId;
+                if (tid != null && !tid.isEmpty()) {
+                    PikoMessageDb.getInstance(PikoUtils.getContext()).setThreadUsername(tid, sCurrentThreadTitle);
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    /** Opens the deleted-messages screen scoped to a specific thread (resolved at click time). */
+    public static void openDeletedMessagesFor(Context ctx, String threadId, String title) {
+        try {
+            if (ctx == null) ctx = PikoUtils.getContext();
+            if (ctx == null) return;
+            if (threadId != null && !threadId.isEmpty()) sCurrentThreadId = threadId;
+            if (title != null && !title.trim().isEmpty()) {
+                sCurrentThreadTitle = title.trim();
+                if (threadId != null && !threadId.isEmpty()) {
+                    PikoMessageDb.getInstance(ctx).setThreadUsername(threadId, sCurrentThreadTitle);
+                }
+            }
+            Intent intent = new Intent(ctx, DeletedMessagesActivity.class);
+            if (sCurrentThreadId != null && !sCurrentThreadId.isEmpty()) intent.putExtra("thread_id", sCurrentThreadId);
+            if (sCurrentThreadTitle != null && !sCurrentThreadTitle.isEmpty()) intent.putExtra("thread_title", sCurrentThreadTitle);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            piko("SavedMessagesHook.openDeletedMessagesFor: " + e);
+        }
+    }
+
+    /** Opens the deleted-messages screen for the currently-open thread (or all if unknown). */
+    public static void openDeletedMessages(Context ctx) {
+        try {
+            if (ctx == null) ctx = PikoUtils.getContext();
+            if (ctx == null) return;
+            Intent intent = new Intent(ctx, DeletedMessagesActivity.class);
+            if (sCurrentThreadId != null && !sCurrentThreadId.isEmpty()) {
+                intent.putExtra("thread_id", sCurrentThreadId);
+            }
+            if (sCurrentThreadTitle != null && !sCurrentThreadTitle.isEmpty()) {
+                intent.putExtra("thread_title", sCurrentThreadTitle);
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            piko("SavedMessagesHook.openDeletedMessages: " + e);
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Hook 1 (REST) + Hook 2 (MQTT): called when any DirectItem is finalized.
@@ -119,16 +190,28 @@ public class SavedMessagesHook {
             }
         });
 
+    // Notification dedup: a single live unsend can surface via BOTH Hook 2 (item re-delivery)
+    // and Hook 4 (DB hide). Notify at most once per message_id (bounded, eldest-evicted).
+    private static final java.util.Map<String, Boolean> NOTIFIED_IDS =
+        java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<String, Boolean>() {
+            @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Boolean> e) {
+                return size() > 1000;
+            }
+        });
+
+    /** True the first time this message_id is offered for notification; false on repeats. */
+    private static boolean claimNotification(String messageId) {
+        if (messageId == null) return true; // can't dedup → allow
+        return NOTIFIED_IDS.put(messageId, Boolean.TRUE) == null;
+    }
+
     public static void onMessageReceived(final Object item) {
-        // DIAGNOSTIC: unconditional first-line log to confirm A0P fires at all.
-        final String dbgCls = (item == null) ? "null" : item.getClass().getName();
-        Logger.printException(() -> "SavedMessagesHook A0P=" + dbgCls);
         // Called from the MQTT thread — must return instantly. All reflection/DB work
         // is posted to sWorker (background HandlerThread).
         if (item == null) return;
-        if (!Pref.saveDeletedMessages()) { Logger.printException(() -> "SavedMessagesHook pref=off"); return; }
+        if (!Pref.saveDeletedMessages()) return;
         // Class guard: only X.* (obfuscated IG classes) are DirectItem candidates.
-        if (!item.getClass().getName().startsWith("X.")) { Logger.printException(() -> "SavedMessagesHook cls-fail=" + dbgCls); return; }
+        if (!item.getClass().getName().startsWith("X.")) return;
 
         getWorker().post(new Runnable() { @Override public void run() {
             processReceivedItem(item);
@@ -137,11 +220,6 @@ public class SavedMessagesHook {
 
     private static void processReceivedItem(Object item) {
         try {
-            // DIAGNOSTIC: prove the hook fires.
-            final String cls = item.getClass().getName();
-            Logger.printException(() -> "SavedMessagesHook ENTER item=" + cls);
-            dumpUnknownItemOnce(item);
-
             // v426 field names (confirmed from dexdump classes12.dex LX/0gL;.A00):
             //   item_id        → A13:String
             //   user_id        → A1M:String (sender ID)
@@ -153,28 +231,46 @@ public class SavedMessagesHook {
             //   item_id        → getter A0l(), thread_key → A16/A18
             String messageId  = reflectString(item, "item_id", "A13");
             if (messageId == null) messageId = reflectStringOrInvoke(item, "item_id", "A0l");
+            // Deletion state participates in the dedup key: an item first seen alive and later
+            // re-delivered as unsent (live in-thread unsend) is a DIFFERENT key, so it is NOT
+            // dropped — we still need to mark it deleted and (conditionally) notify.
+            boolean deleted = isHideInThread(item);
             // Dedup: A0P is called for every historical inbox item on each sync.
-            if (messageId != null && SEEN_ITEM_IDS.put(messageId, Boolean.TRUE) != null) return;
+            if (messageId != null
+                    && SEEN_ITEM_IDS.put(messageId + (deleted ? ":1" : ":0"), Boolean.TRUE) != null) return;
             String threadId   = reflectThreadIdFromItem(item);
             String senderId   = reflectString(item, "user_id", "A1M");
+            PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
+            // 1. REST items may carry a full UserInfo — extract + persist the handle for reuse.
             String senderUser = resolveSenderUsername(item, senderId);
-            // MQTT path only delivers sender_id, not a full UserInfo object.
-            // Try to resolve username from IG's user cache; fall back to sender_id.
+            if (senderUser != null) db.putUsername(senderId, senderUser);
+            // 2. MQTT items carry only sender_id. Reuse a previously-persisted handle…
+            if (senderUser == null && senderId != null) {
+                senderUser = db.getUsername(senderId);
+            }
+            // 3. …or, as a last resort, probe IG's local user cache DBs.
             if (senderUser == null && senderId != null) {
                 senderUser = resolveUsernameFromCache(senderId);
+                if (senderUser != null) db.putUsername(senderId, senderUser);
             }
-            // DIAGNOSTIC: log UserInfo candidates when username not found.
-            if (senderUser == null) { dumpUserInfoCandidatesOnce(item, senderId); }
             String content    = null;
             String type       = null;
             long   timestamp  = System.currentTimeMillis();
 
-            // item_type: v426 stores as enum (A0Y), v408 as String (A0R)
+            // item_type: v426 stores it as an enum in A0Y — but A0Y is SHADOWED on the MQTT
+            // subclass (X.0gF.A0Y:Media is usually null), so it must be read from the base class
+            // (X.9ZA, the same class that declares the String item_id A13), not via a plain
+            // superclass-chain walk which returns the subclass's null field first.
             try {
-                Object typeObj = reflectRaw(item, "item_type", "A0Y");
+                Object typeObj = null;
+                Class<?> base = declaringClassOfStringField(item, "A13");
+                if (base != null) typeObj = readFieldOnClass(base, item, "A0Y");
+                if (typeObj == null) typeObj = reflectRaw(item, "item_type", "A0Y");
                 if (typeObj != null) type = typeObj.toString();
             } catch (Exception ignored) {}
             if (type == null) type = reflectString(item, "item_type", "A0R");
+            // Normalise the enum's toString() to a stable lowercase token when possible.
+            if (type != null) type = type.trim();
 
             // timestamp: v426 stores as String microseconds (A1J), v408 as Long (A03)
             try {
@@ -190,7 +286,7 @@ public class SavedMessagesHook {
 
             // text content:
             //   REST path (X.9ZA base): A1I:String
-            //   MQTT path (X.0gF wrapper): A0o:Object (confirmed by Frida — "Hi" etc.)
+            //   MQTT path (X.0gF wrapper): A0o:Object holds the text String directly
             //   v408: nested text object with A00:String
             try {
                 content = reflectString(item, "text", "A1I");
@@ -209,6 +305,13 @@ public class SavedMessagesHook {
                 }
             } catch (Exception ignored) {}
 
+            // Media messages (photo/video/voice/etc.) carry no text — capture the media URL so the
+            // deleted-messages screen can still display/open it after the sender unsends.
+            if ((content == null || content.isEmpty()) && type != null && !type.equals("text")) {
+                String url = deepFindMediaUrl(item);
+                if (url != null) content = url;
+            }
+
             if (messageId == null) {
                 // The legacy obfuscated id fields (A13/A0l) do NOT resolve on the MQTT
                 // subclass (X.0gF) — there A13 is a boolean, not item_id — so modern
@@ -216,13 +319,9 @@ public class SavedMessagesHook {
                 // leaving the deleted-messages list permanently empty.
                 //
                 // Instead of dropping the message, derive a stable synthetic key from
-                // sender + timestamp (the same dedupe key scripts/frida/dm-hooks.js uses).
+                // sender + timestamp, so a later unsend maps back to the same row.
                 // This guarantees every received item is captured and, critically, that a
                 // later unsend of the same item maps back to the same row to mark deleted.
-                //
-                // Still dump the object once so the real obfuscated id field can be
-                // confirmed and wired in (see Fix B / SgMessage path).
-                dumpUnknownItemOnce(item);
                 if (senderId != null) {
                     messageId = "syn:" + senderId + ":" + timestamp;
                 } else {
@@ -233,8 +332,12 @@ public class SavedMessagesHook {
 
             // thread_id is NOT NULL in the schema; fall back to empty when unknown.
             if (threadId == null) threadId = "";
-
-            PikoMessageDb db = PikoMessageDb.getInstance(PikoUtils.getContext());
+            // Track the most-recently-seen thread so the DM action-bar button can open this
+            // chat's deleted messages. Opening a thread triggers a burst of A0P calls for its
+            // items, so the last non-empty thread id is a good proxy for "the open chat".
+            if (!threadId.isEmpty() && !threadId.equals(sCurrentThreadId)) {
+                sCurrentThreadId = threadId;
+            }
 
             // Deletion (unsend) detection.
             // hideInThread field on the domain DirectItem object is ProGuard-obfuscated:
@@ -242,16 +345,24 @@ public class SavedMessagesHook {
             //   v408 (LX/5jI): A2V:Z  ← confirmed from reference APK analysis
             // Try obfuscated names first (fast path), then fall back to the stable
             // protobuf field name "hideInThread_" in case a future build de-obfuscates.
-            boolean deleted = readBool(item, "A1Y")          // v426
-                || readBool(item, "A2V")                     // v408 / reference APK
-                || readBool(item, "hideInThread_")           // proto-model stable name
-                || readBool(item, "is_deleted_for_self");    // sibling flag
-
             if (deleted) {
+                // Live-deletion gate: only notify when we previously saw THIS message alive.
+                // A historical unsent item arriving already-hidden during an inbox sync is
+                // stored (so the screen still lists it) but must NOT raise a notification.
+                boolean liveDeletion = db.isStoredAlive(messageId);
                 // Capture content first (so the row exists), then mark + notify.
                 db.insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
                 db.markDeleted(messageId);
-                notifyDeletion(senderUser, content, type);
+                // liveDeletion already implies the message was received (stored alive), so our own
+                // outgoing unsends never reach here.
+                if (liveDeletion && claimNotification(messageId)) {
+                    String notifySender = (senderUser != null) ? senderUser
+                            : db.getThreadUsername(threadId);
+                    if (notifySender == null) notifySender = db.getSenderDisplay(messageId);
+                    String notifyBody   = (content != null && !content.isEmpty())
+                            ? content : db.getStoredContent(messageId);
+                    notifyDeletion(notifySender, notifyBody, type);
+                }
 
                 // Anti-revoke in-place: undo the deletion flag on the item object so IG
                 // keeps the message visible in the thread with its original text.
@@ -263,9 +374,8 @@ public class SavedMessagesHook {
             } else {
                 db.insertOrIgnore(messageId, threadId, senderId, senderUser, content, type, timestamp);
             }
-
         } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.processReceivedItem: " + e);
+            piko("SavedMessagesHook.processReceivedItem: " + e);
         }
     }
 
@@ -274,7 +384,7 @@ public class SavedMessagesHook {
      * UI renders the message normally instead of hiding it. The item object is mutated
      * in place — the caller's return-object smali instruction sees the modified state.
      *
-     * Two text paths must be restored (confirmed by Frida on v426):
+     * Two text paths must be restored on v426:
      *   REST path (LX/9ZA; base class): text at A1I:String
      *   MQTT path (LX/0gF; subclass):   text at A0o:Object (holds the String directly)
      * Both must be set; if only A1I is set, MQTT-delivered items still appear unsent
@@ -310,6 +420,71 @@ public class SavedMessagesHook {
         }
     }
 
+    /**
+     * Authoritative hide_in_thread (unsend) check.
+     *
+     * <p>The real {@code hide_in_thread} flag is {@code A1Y:Z}, declared on the base
+     * DirectItem class {@code LX/9ZA;} — the SAME class that declares the String
+     * {@code item_id} ({@code A13:String}). The MQTT subclass {@code LX/0gF;} declares its
+     * own unrelated same-named fields (confirmed for {@code A13}, which is a boolean there),
+     * so a naive {@code readBool(item,"A1Y")} can return a shadowing concrete-class boolean
+     * that is {@code true} on perfectly normal messages — firing a bogus "unsent" notification
+     * with null content (rendered as "[null]").
+     *
+     * <p>Fix: locate the base class by the declaring class of {@code A13:String}, then read
+     * {@code A1Y} from THAT class only. If the base class can't be located we deliberately do
+     * NOT fall back to a shadowing-prone plain read — we only trust de-obfuscated proto names.
+     */
+    private static boolean isHideInThread(Object item) {
+        Class<?> base = declaringClassOfStringField(item, "A13");
+        if (base != null) {
+            Boolean v = readBoolOnClass(base, item, "A1Y"); // v426 hide_in_thread on LX/9ZA;
+            if (v != null) return v;
+        }
+        // Stable / de-obfuscated names are not subject to subclass shadowing — safe to read directly.
+        return readBool(item, "A2V")                  // v408 / reference APK
+            || readBool(item, "hideInThread_")        // proto-model stable name
+            || readBool(item, "is_deleted_for_self"); // sibling flag
+    }
+
+    /** Returns the class in obj's hierarchy that declares a field named {@code fieldName} of type String. */
+    private static Class<?> declaringClassOfStringField(Object obj, String fieldName) {
+        Class<?> cls = obj.getClass();
+        while (cls != null && cls != Object.class) {
+            try {
+                Field f = cls.getDeclaredField(fieldName);
+                if (f.getType() == String.class) return cls;
+            } catch (NoSuchFieldException ignored) {}
+            cls = cls.getSuperclass();
+        }
+        return null;
+    }
+
+    /** Read a boolean field declared on a SPECIFIC class (no chain walk). null = absent/non-boolean. */
+    private static Boolean readBoolOnClass(Class<?> cls, Object obj, String fieldName) {
+        try {
+            Field f = cls.getDeclaredField(fieldName);
+            if (f.getType() != boolean.class && f.getType() != Boolean.class) return null;
+            f.setAccessible(true);
+            Object v = f.get(obj);
+            return v instanceof Boolean && (Boolean) v;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Read a field declared on a SPECIFIC class (no superclass-chain walk), or null. Used to read
+     *  shadowed fields (e.g. item_type A0Y) from the base class rather than the MQTT subclass. */
+    private static Object readFieldOnClass(Class<?> cls, Object obj, String fieldName) {
+        try {
+            Field f = cls.getDeclaredField(fieldName);
+            f.setAccessible(true);
+            return f.get(obj);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** Read a boolean field by exact name, tolerating Boolean/boolean. Walks the superclass chain. */
     private static boolean readBool(Object obj, String fieldName) {
         Class<?> cls = obj.getClass();
@@ -326,40 +501,6 @@ public class SavedMessagesHook {
             }
         }
         return false;
-    }
-
-    private static final java.util.Set<String> DUMPED_CLASSES =
-        java.util.Collections.synchronizedSet(new java.util.HashSet<>());
-
-    /**
-     * Logs the class name and every declared field (name = value) the first time an
-     * unmappable item of a given class is seen — walks the full superclass chain so
-     * fields declared on parent classes (e.g. LX/9ZA; when the runtime type is LX/0gF;)
-     * are included in the dump.
-     */
-    private static void dumpUnknownItemOnce(Object item) {
-        try {
-            if (item == null) return;
-            String cls = item.getClass().getName();
-            if (!DUMPED_CLASSES.add(cls)) return;
-            StringBuilder sb = new StringBuilder("SavedMessagesHook ObjectBrowser dump for ").append(cls).append(":\n");
-            Class<?> c = item.getClass();
-            while (c != null && c != Object.class) {
-                if (c != item.getClass()) sb.append("  [inherited from ").append(c.getName()).append("]\n");
-                for (Field f : c.getDeclaredFields()) {
-                    f.setAccessible(true);
-                    Object v;
-                    try { v = f.get(item); } catch (Exception e) { v = "<inaccessible>"; }
-                    String vs = v == null ? "null" : v.toString();
-                    if (vs.length() > 80) vs = vs.substring(0, 80) + "…";
-                    sb.append("  ").append(f.getType().getSimpleName()).append(' ')
-                      .append(f.getName()).append(" = ").append(vs).append('\n');
-                }
-                c = c.getSuperclass();
-            }
-            String out = sb.toString();
-            Logger.printException(() -> out);
-        } catch (Exception ignored) {}
     }
 
     /** Post a system notification when a received message is detected as unsent. */
@@ -380,8 +521,10 @@ public class SavedMessagesHook {
                 nm.createNotificationChannel(ch);
             }
 
-            String who = (sender != null && !sender.isEmpty()) ? "@" + sender : "Someone";
-            String body = (content != null && !content.isEmpty()) ? content : "[" + type + "]";
+            String who = (sender != null && !sender.isEmpty()) ? sender : "Someone";
+            String body = (content != null && !content.isEmpty())
+                    ? content
+                    : (type != null && !type.isEmpty()) ? "[" + type + "]" : "[deleted]";
 
             Intent intent = new Intent(ctx, DeletedMessagesActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -397,7 +540,7 @@ public class SavedMessagesHook {
                     : new android.app.Notification.Builder(ctx);
             android.app.Notification n = b
                 .setSmallIcon(iconRes != 0 ? iconRes : android.R.drawable.ic_dialog_info)
-                .setContentTitle(who + " unsent a message")
+                .setContentTitle(who + " deleted a message")
                 .setContentText(body)
                 .setAutoCancel(true)
                 .setContentIntent(pi)
@@ -405,7 +548,7 @@ public class SavedMessagesHook {
 
             nm.notify((int) (System.currentTimeMillis() & 0x7fffffff), n);
         } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.notifyDeletion: " + e);
+            piko("SavedMessagesHook.notifyDeletion: " + e);
         }
     }
 
@@ -421,7 +564,7 @@ public class SavedMessagesHook {
             PikoMessageDb.getInstance(PikoUtils.getContext()).markDeleted(itemId);
 
         } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.onMessageDeleted: " + e);
+            piko("SavedMessagesHook.onMessageDeleted: " + e);
         }
     }
 
@@ -445,18 +588,20 @@ public class SavedMessagesHook {
             String itemId = (serverId != null && !serverId.isEmpty()) ? serverId : clientId;
             if (itemId == null) return;
 
-            // DIAGNOSTIC: dump DAO fields once to find message cache / SQLiteDatabase handle.
-            dumpDaoOnce(dao, serverId, clientId);
+            PikoMessageDb vault = PikoMessageDb.getInstance(PikoUtils.getContext());
+            // Was this message previously RECEIVED (captured alive by Hook 1/2)? If not, this is
+            // almost certainly OUR OWN outgoing message being unsent — we still record it but must
+            // NOT raise a notification for it.
+            boolean wasReceived = vault.isStoredAlive(itemId);
 
             String content     = null;
             String threadId    = "";
             String senderId    = null;
-            String messageType = "text";
+            // Prefer the message_type captured at receive time (Instagram's own "messages" table is
+            // empty under MSYS on v426, so a DB read here usually can't tell text from media).
+            String storedType  = vault.getMessageType(itemId);
+            String messageType = (storedType != null) ? storedType : "text";
             long   timestamp   = System.currentTimeMillis();
-
-            // DIAGNOSTIC (one-shot): dump recent rows from the MSYS deleted-messages table so we
-            // can confirm the deleted_message_payload blob is text-extractable (v426 MSYS).
-            dumpDeletedPayloadOnce(PikoUtils.getContext());
 
             // --- Read from Instagram's own "messages" table before the DELETE fires ---
             SQLiteDatabase igDb = getInstagramDb(dao);
@@ -503,12 +648,11 @@ public class SavedMessagesHook {
                 }
             }
 
-            PikoMessageDb vault = PikoMessageDb.getInstance(PikoUtils.getContext());
-
             if (content != null && !content.isEmpty()) {
                 vault.insertOrIgnore(itemId, threadId, senderId, null, content, messageType, timestamp);
             } else {
-                // Media / unsupported type — fall back to what Hook 1/2 may have stored.
+                // Media / unsupported type — fall back to what Hook 1/2 may have stored
+                // (text, or a media URL captured at receive time).
                 String stored = vault.getStoredContent(itemId);
                 if (stored != null) content = stored;
                 // Still insert a skeleton row so markDeleted has a row to update.
@@ -517,276 +661,33 @@ public class SavedMessagesHook {
             }
             vault.markDeleted(itemId);
 
-            // DIAGNOSTIC: log what ended up stored in PikoMessageDb for this deletion.
             String pikoContent = vault.getStoredContent(itemId);
-            final String dbgId = itemId.length() > 8 ? itemId.substring(0, 8) : itemId;
-            Logger.printException(() -> "Hook4 id=" + dbgId + " piko=" + pikoContent);
 
-            String notifBody = (pikoContent != null && !pikoContent.isEmpty())
-                    ? pikoContent : describeMediaType(messageType);
-            // Try to get sender info from PikoMessageDb (stored by Hook 2).
-            String storedSender = vault.getSenderDisplay(itemId);
-            notifyDeletion(storedSender, notifBody, messageType);
+            // Notify only for messages we actually received (skips our own unsends + uncaptured).
+            if (wasReceived && claimNotification(itemId)) {
+                // For media the stored content is a URL/label — show a friendly type label, not the URL.
+                boolean isMedia = pikoContent == null || pikoContent.isEmpty()
+                        || pikoContent.startsWith("http") || pikoContent.startsWith("[");
+                String notifBody = isMedia ? describeMediaType(messageType) : pikoContent;
+                // Name = the chat title (display name) recorded for this thread; fall back to
+                // any sender display we have. Matches the "<name> deleted a message" UX.
+                String storedThreadId = vault.getThreadIdOf(itemId);
+                String name = vault.getThreadUsername(storedThreadId);
+                if (name == null) name = vault.getSenderDisplay(itemId);
+                notifyDeletion(name, notifBody, messageType);
+            }
 
         } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.onMessageHiddenFromDb: " + e);
-        }
-    }
-
-    private static final java.util.concurrent.atomic.AtomicBoolean USER_INFO_DUMPED =
-        new java.util.concurrent.atomic.AtomicBoolean(false);
-
-    private static void dumpUserInfoCandidatesOnce(Object item, String senderId) {
-        if (!USER_INFO_DUMPED.compareAndSet(false, true)) return;
-        try {
-            Logger.printException(() -> "UINF senderId=" + senderId + " cls=" + item.getClass().getName());
-            // Dump all non-primitive fields on the item and its superclasses so we can
-            // identify which field holds the UserInfo object (for username extraction).
-            Class<?> cls = item.getClass();
-            while (cls != null && cls != Object.class) {
-                final String cn = cls.getName();
-                for (Field f : cls.getDeclaredFields()) {
-                    if (f.getType().isPrimitive()) continue;
-                    if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
-                    if (f.getType() == String.class || f.getType() == java.lang.Boolean.class
-                            || f.getType() == java.lang.Long.class || f.getType() == java.lang.Integer.class) continue;
-                    f.setAccessible(true);
-                    Object v;
-                    try { v = f.get(item); } catch (Exception e2) { continue; }
-                    if (v == null) continue;
-                    final String fn = f.getName();
-                    final String vt = v.getClass().getName();
-                    Logger.printException(() -> "UINF " + cn + "." + fn + ":" + vt);
-                    // If this object has any String fields, log them (candidate username).
-                    for (Field sf : v.getClass().getDeclaredFields()) {
-                        if (sf.getType() != String.class) continue;
-                        sf.setAccessible(true);
-                        Object sv;
-                        try { sv = sf.get(v); } catch (Exception e2) { continue; }
-                        if (sv instanceof String && !((String)sv).isEmpty()) {
-                            final String sfn = sf.getName();
-                            final String svv = (String) sv;
-                            Logger.printException(() -> "UINF   ." + sfn + "=" + svv);
-                        }
-                    }
-                }
-                cls = cls.getSuperclass();
-            }
-        } catch (Exception e) {
-            Logger.printException(() -> "UINF dump failed: " + e);
-        }
-    }
-
-    private static final java.util.concurrent.atomic.AtomicBoolean DAO_DUMPED =
-        new java.util.concurrent.atomic.AtomicBoolean(false);
-
-    /** One-shot: dump all fields of the DAO object (and superclasses) to find message cache or DB handle. */
-    private static void dumpDaoOnce(Object dao, String serverId, String clientId) {
-        if (!DAO_DUMPED.compareAndSet(false, true)) return;
-        try {
-            Logger.printException(() -> "DAODUMP serverId=" + serverId + " clientId=" + clientId
-                    + " dao=" + (dao == null ? "null" : dao.getClass().getName()));
-            if (dao == null) return;
-            Class<?> cls = dao.getClass();
-            while (cls != null && !cls.equals(Object.class)) {
-                final String clsName = cls.getName();
-                for (Field f : cls.getDeclaredFields()) {
-                    f.setAccessible(true);
-                    Object val;
-                    try { val = f.get(dao); } catch (Exception ex) { val = "<err:" + ex.getMessage() + ">"; }
-                    final String fieldDesc = "  " + clsName + "." + f.getName() + ":" + f.getType().getSimpleName() + " = " + summarize(val);
-                    Logger.printException(() -> "DAODUMP " + fieldDesc);
-                }
-                cls = cls.getSuperclass();
-            }
-        } catch (Exception e) {
-            Logger.printException(() -> "DAODUMP error: " + e);
-        }
-    }
-
-    private static String summarize(Object val) {
-        if (val == null) return "null";
-        if (val instanceof String) return "\"" + val + "\"";
-        if (val instanceof SQLiteDatabase) return "<SQLiteDatabase path=" + ((SQLiteDatabase)val).getPath() + ">";
-        String s = val.toString();
-        return s.length() > 120 ? s.substring(0, 120) + "…" : s;
-    }
-
-    private static final java.util.concurrent.atomic.AtomicBoolean DB_LAYOUT_DUMPED =
-        new java.util.concurrent.atomic.AtomicBoolean(false);
-
-    /**
-     * One-shot diagnostic: walk every *.db under the app's databases dir, list each DB's tables,
-     * and for any table whose name/columns look message-related, log its columns. Lets us find
-     * IG's real DM store (path + table + columns) on v426/Android 15 from inside the app process,
-     * since the app is not debuggable and run-as is blocked.
-     */
-    private static void dumpDatabasesLayoutOnce(Context ctx) {
-        try {
-            if (ctx == null) return;
-            if (!DB_LAYOUT_DUMPED.compareAndSet(false, true)) return;
-            File dbDir = ctx.getDatabasePath("x").getParentFile();
-            if (dbDir == null || !dbDir.exists()) {
-                Logger.printException(() -> "DBLAYOUT: databases dir missing: " + dbDir);
-                return;
-            }
-            File[] all = dbDir.listFiles();
-            StringBuilder sb = new StringBuilder("DBLAYOUT dir=").append(dbDir).append('\n');
-            if (all != null) {
-                for (File f : all) {
-                    sb.append("  FILE ").append(f.getName()).append(" (").append(f.length()).append(" b)\n");
-                    if (!f.getName().endsWith(".db")) continue;
-                    SQLiteDatabase db = null;
-                    try {
-                        db = SQLiteDatabase.openDatabase(f.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
-                        Cursor tc = db.rawQuery(
-                            "SELECT name FROM sqlite_master WHERE type='table'", null);
-                        while (tc.moveToNext()) {
-                            String table = tc.getString(0);
-                            sb.append("      TABLE ").append(table);
-                            String lt = table.toLowerCase();
-                            if (lt.contains("message") || lt.contains("thread") || lt.contains("item")
-                                    || lt.contains("user") || lt.contains("msys")) {
-                                try {
-                                    Cursor cc = db.rawQuery("PRAGMA table_info(" + table + ")", null);
-                                    sb.append(" [");
-                                    while (cc.moveToNext()) sb.append(cc.getString(1)).append(',');
-                                    sb.append(']');
-                                    cc.close();
-                                } catch (Exception ignored) {}
-                            }
-                            sb.append('\n');
-                        }
-                        tc.close();
-                    } catch (Exception e) {
-                        sb.append("      <open failed: ").append(e).append(">\n");
-                    } finally {
-                        if (db != null) db.close();
-                    }
-                }
-            }
-            final String out = sb.toString();
-            Logger.printException(() -> out);
-        } catch (Exception e) {
-            Logger.printException(() -> "dumpDatabasesLayoutOnce: " + e);
-        }
-    }
-
-    private static final java.util.concurrent.atomic.AtomicBoolean DEL_PAYLOAD_DUMPED =
-        new java.util.concurrent.atomic.AtomicBoolean(false);
-
-    /** Locate the MSYS reverb_db (holds local_message_persistence_store*). WAL → concurrent read OK. */
-    private static File findReverbDb(Context ctx) {
-        if (ctx == null) return null;
-        File dbDir = ctx.getDatabasePath("x").getParentFile();
-        if (dbDir == null) return null;
-        File[] all = dbDir.listFiles();
-        if (all == null) return null;
-        for (File f : all) {
-            if (f.getName().startsWith("reverb_db_") && f.getName().endsWith(".db")) return f;
-        }
-        return null;
-    }
-
-    /** Extract printable ASCII runs (length >= 3) from a blob, joined by '|'. */
-    private static String printableRuns(byte[] b) {
-        if (b == null) return "";
-        StringBuilder sb = new StringBuilder();
-        StringBuilder run = new StringBuilder();
-        for (byte value : b) {
-            int c = value & 0xFF;
-            if (c >= 0x20 && c < 0x7F) {
-                run.append((char) c);
-            } else {
-                if (run.length() >= 3) { if (sb.length() > 0) sb.append('|'); sb.append(run); }
-                run.setLength(0);
-            }
-        }
-        if (run.length() >= 3) { if (sb.length() > 0) sb.append('|'); sb.append(run); }
-        return sb.toString();
-    }
-
-    private static void dumpDeletedPayloadOnce(Context ctx) {
-        try {
-            if (!DEL_PAYLOAD_DUMPED.compareAndSet(false, true)) return;
-            File reverb = findReverbDb(ctx);
-            if (reverb == null) { Logger.printException(() -> "DELPAYLOAD: reverb_db not found"); return; }
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(reverb.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
-            try {
-                // Log all reverb_db files found (there may be multiple per account).
-                File dbDir = ctx.getDatabasePath("x").getParentFile();
-                if (dbDir != null) {
-                    File[] all = dbDir.listFiles();
-                    if (all != null) {
-                        StringBuilder allDbs = new StringBuilder("DELPAYLOAD all reverb_dbs: ");
-                        for (File f : all) { if (f.getName().startsWith("reverb_db_")) allDbs.append(f.getName()).append(" "); }
-                        final String allDbsOut = allDbs.toString();
-                        Logger.printException(() -> allDbsOut);
-                    }
-                }
-
-                // Schema: log one entry per table with row count so logcat doesn't truncate.
-                Cursor tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", null);
-                while (tables.moveToNext()) {
-                    String tbl = tables.getString(0);
-                    Cursor cnt = db.rawQuery("SELECT COUNT(*) FROM " + tbl, null);
-                    long rowCnt = cnt.moveToFirst() ? cnt.getLong(0) : -1;
-                    cnt.close();
-                    Cursor cols = db.rawQuery("PRAGMA table_info(" + tbl + ")", null);
-                    StringBuilder tblInfo = new StringBuilder("DELPAYLOAD TABLE ").append(tbl).append(" (").append(rowCnt).append(" rows) cols: ");
-                    while (cols.moveToNext()) { tblInfo.append(cols.getString(1)).append(":").append(cols.getString(2)).append(" "); }
-                    cols.close();
-                    final String tblOut = tblInfo.toString();
-                    Logger.printException(() -> tblOut);
-                }
-                tables.close();
-
-                // Dump last 3 rows from main messages table (message is still there when Hook 4 fires).
-                dumpTableRows(db, "local_message_persistence_store", "rowid DESC");
-                // Also try deleted table in case IG already wrote it.
-                dumpTableRows(db, "local_message_persistence_store_deleted_messages", "deletion_timestamp_ms DESC");
-            } finally {
-                db.close();
-            }
-        } catch (Exception e) {
-            Logger.printException(() -> "dumpDeletedPayloadOnce: " + e);
-        }
-    }
-
-    private static void dumpTableRows(SQLiteDatabase db, String table, String order) {
-        try {
-            Cursor c = db.query(table, null, null, null, null, null, order, "3");
-            String[] cols = c.getColumnNames();
-            int rowNum = 0;
-            while (c.moveToNext()) {
-                rowNum++;
-                final int rn = rowNum;
-                StringBuilder sb = new StringBuilder("DELPAYLOAD ").append(table).append(" row").append(rn).append(":\n");
-                for (int i = 0; i < cols.length; i++) {
-                    int type = c.getType(i);
-                    if (type == Cursor.FIELD_TYPE_BLOB) {
-                        byte[] blob = c.getBlob(i);
-                        sb.append("  ").append(cols[i]).append(" (blob ")
-                          .append(blob == null ? 0 : blob.length).append("b): ")
-                          .append(printableRuns(blob)).append('\n');
-                    } else {
-                        sb.append("  ").append(cols[i]).append(" = ").append(c.getString(i)).append('\n');
-                    }
-                }
-                final String rowOut = sb.toString();
-                Logger.printException(() -> rowOut);
-            }
-            if (rowNum == 0) Logger.printException(() -> "DELPAYLOAD " + table + ": 0 rows");
-            c.close();
-        } catch (Exception e) {
-            Logger.printException(() -> "DELPAYLOAD dumpTableRows(" + table + "): " + e);
+            piko("SavedMessagesHook.onMessageHiddenFromDb: " + e);
         }
     }
 
     private static String describeMediaType(String type) {
         if (type == null) return "[deleted]";
         switch (type) {
+            case "media":
             case "image":           return "[photo deleted]";
+            case "raven_media":     return "[disappearing photo deleted]";
             case "video":           return "[video deleted]";
             case "voice_media":
             case "audio":           return "[voice message deleted]";
@@ -827,7 +728,7 @@ public class SavedMessagesHook {
 
             return scanForDb(helperClass);
         } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.getInstagramDb: " + e);
+            piko("SavedMessagesHook.getInstagramDb: " + e);
             return null;
         }
     }
@@ -892,71 +793,8 @@ public class SavedMessagesHook {
                 db.close();
             } catch (Exception ignored) {}
         }
-        Logger.printException(() -> "SavedMessagesHook: Instagram DM database not found in " + dbDir);
+        piko("SavedMessagesHook: Instagram DM database not found in " + dbDir);
         return null;
-    }
-
-    // -------------------------------------------------------------------------
-    // Hook 3: called from onTextChanged of the DM compose bar TextWatcher.
-    // Adds a small icon button to the left side of the compose bar on first call.
-    // -------------------------------------------------------------------------
-    public static void addDeletedMessagesButton(Object textWatcher) {
-        try {
-            if (!Pref.saveDeletedMessages()) return;
-
-            // Locate the EditText that this TextWatcher is watching
-            EditText editText = findEditText(textWatcher);
-            if (editText == null) return;
-
-            ViewGroup parent = (ViewGroup) editText.getParent();
-            if (parent == null) return;
-
-            // Only add once per compose bar instance
-            if (parent.findViewWithTag(BUTTON_TAG) != null) return;
-
-            // Try to recover thread_id from the TextWatcher's class fields
-            String threadId = findThreadId(textWatcher);
-
-            Context ctx = editText.getContext();
-
-            ImageButton btn = new ImageButton(ctx);
-            btn.setTag(BUTTON_TAG);
-            btn.setContentDescription("View deleted messages");
-            btn.setBackgroundColor(Color.TRANSPARENT);
-
-            // Reuse a common inbox-style icon available in Instagram's resources
-            try {
-                int resId = ctx.getResources().getIdentifier(
-                    "direct_inbox_icon", "drawable", ctx.getPackageName());
-                if (resId == 0) resId = ctx.getResources().getIdentifier(
-                    "direct_message_icon", "drawable", ctx.getPackageName());
-                if (resId != 0) {
-                    btn.setImageResource(resId);
-                    btn.setColorFilter(0xFFAAAAAA, PorterDuff.Mode.SRC_IN);
-                }
-            } catch (Exception ignored) {}
-
-            int size = (int) (40 * ctx.getResources().getDisplayMetrics().density);
-            int margin = (int) (4 * ctx.getResources().getDisplayMetrics().density);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
-            params.gravity = Gravity.CENTER_VERTICAL;
-            params.leftMargin = margin;
-            params.rightMargin = margin;
-
-            final String finalThreadId = threadId;
-            btn.setOnClickListener(v -> {
-                Intent intent = new Intent(ctx, DeletedMessagesActivity.class);
-                if (finalThreadId != null) intent.putExtra("thread_id", finalThreadId);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(intent);
-            });
-
-            // Insert at position 0 so it appears to the left of the compose input
-            parent.addView(btn, 0, params);
-
-        } catch (Exception e) {
-            Logger.printException(() -> "SavedMessagesHook.addDeletedMessagesButton: " + e);
-        }
     }
 
     /**
@@ -1001,7 +839,7 @@ public class SavedMessagesHook {
                 } catch (Exception ignored) {}
             }
         } catch (Exception e) {
-            Logger.printException(() -> "resolveUsernameFromCache: " + e);
+            piko("resolveUsernameFromCache: " + e);
         }
         return null;
     }
@@ -1010,39 +848,10 @@ public class SavedMessagesHook {
     // Reflection helpers
     // -------------------------------------------------------------------------
 
-    private static EditText findEditText(Object obj) {
-        Class<?> cls = obj.getClass();
-        while (cls != null && cls != Object.class) {
-            for (Field f : cls.getDeclaredFields()) {
-                f.setAccessible(true);
-                try {
-                    Object val = f.get(obj);
-                    if (val instanceof EditText) return (EditText) val;
-                } catch (Exception ignored) {}
-            }
-            cls = cls.getSuperclass();
-        }
-        return null;
-    }
-
-    private static String findThreadId(Object obj) {
-        for (Field f : obj.getClass().getDeclaredFields()) {
-            f.setAccessible(true);
-            try {
-                Object val = f.get(obj);
-                // Instagram thread IDs are long numeric strings (17+ digits)
-                if (val instanceof String && ((String) val).matches("\\d{10,}")) {
-                    return (String) val;
-                }
-            } catch (Exception ignored) {}
-        }
-        return null;
-    }
-
     /**
      * Resolve the sender's username by reflecting the sender UserInfo entity off the DirectItem.
      *
-     * Historic mapping (see CLAUDE.md "Obfuscated field mapping pattern"):
+     * Historic mapping:
      *   DirectItem.A02 → sender UserInfo entity, with sub-fields A00 = user_id, A01 = username.
      * Obfuscated names rotate per build, so we DON'T rely on a single hardcoded name. Strategy:
      *   1. Try known/candidate UserInfo field names on the item (walking the superclass chain).
@@ -1052,8 +861,6 @@ public class SavedMessagesHook {
      *      a handle. The matching user_id confirms we picked the right entity.
      *
      * Returns null if no username can be found (caller stores empty; UI falls back to sender_id).
-     * The first time an item shape is seen, dumpUnknownItemOnce() logs every field so the exact
-     * v426 names can be confirmed from logcat (tag: piko) and pinned in CANDIDATE_* below.
      */
     private static String resolveSenderUsername(Object item, String senderId) {
         try {
@@ -1164,9 +971,97 @@ public class SavedMessagesHook {
             Object key = getFieldValue(item, keyField);
             if (key == null) continue;
             Object v = getFieldValue(key, "A00");
-            if (v instanceof String && !((String) v).isEmpty()) return (String) v;
+            if (v instanceof String && ((String) v).matches("\\d{15,}")) return (String) v;
         }
-        return null;
+        // Fallback: the thread_id is a long numeric "thread fbid" (~39 digits, near 2^128) that
+        // lives deeper in the item graph than the fixed field names above. Deep-search for the
+        // LONGEST all-digit string — thread_id (≈39) outranks message_id (≈35) and user_id (≈11).
+        return deepLongestNumericId(item, 30);
+    }
+
+    /** Bounded BFS over the item graph for a media URL (image/video/audio CDN link). Prefers the
+     *  longest match (usually the highest-resolution variant). Returns null if none found. */
+    private static String deepFindMediaUrl(Object root) {
+        try {
+            java.util.IdentityHashMap<Object, Boolean> seen = new java.util.IdentityHashMap<>();
+            java.util.ArrayDeque<Object> q = new java.util.ArrayDeque<>();
+            q.add(root); seen.put(root, Boolean.TRUE);
+            String best = null;
+            int budget = 6000;
+            while (!q.isEmpty() && budget-- > 0) {
+                Object o = q.poll();
+                Class<?> k = o.getClass();
+                if (k.isArray() && !k.getComponentType().isPrimitive()) {
+                    for (Object el : (Object[]) o) if (el != null && seen.put(el, Boolean.TRUE) == null) q.add(el);
+                    continue;
+                }
+                String kn = k.getName();
+                if (!(kn.startsWith("X.") || kn.startsWith("com.instagram"))) continue;
+                for (Class<?> cc = k; cc != null && cc != Object.class; cc = cc.getSuperclass()) {
+                    for (Field f : cc.getDeclaredFields()) {
+                        if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                        if (f.getType().isPrimitive()) continue;
+                        Object v;
+                        try { f.setAccessible(true); v = f.get(o); } catch (Throwable t) { continue; }
+                        if (v == null || seen.put(v, Boolean.TRUE) != null) continue;
+                        if (v instanceof String) {
+                            String s = (String) v;
+                            boolean looksMedia = s.startsWith("http") && (s.contains("cdninstagram") || s.contains("fbcdn")
+                                    || s.matches("(?i).*\\.(jpg|jpeg|webp|heic|mp4|mov|m4a|aac|gif).*"));
+                            // Exclude the sender's profile picture (IG profile-pic CDN namespace /
+                            // small square thumbnails) so we capture the actual message media.
+                            boolean profilePic = s.contains("t51.2885-19") || s.contains("/profile")
+                                    || s.contains("s150x150") || s.contains("s320x320");
+                            if (looksMedia && !profilePic && (best == null || s.length() > best.length())) best = s;
+                            continue;
+                        }
+                        if (v instanceof CharSequence || v instanceof Number || v instanceof Boolean) continue;
+                        q.add(v);
+                    }
+                }
+            }
+            return best;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Bounded BFS over an IG/obfuscated object graph; returns the longest all-digit String
+     *  with length >= minLen (the thread fbid), or null. */
+    static String deepLongestNumericId(Object root, int minLen) {
+        try {
+            java.util.IdentityHashMap<Object, Boolean> seen = new java.util.IdentityHashMap<>();
+            java.util.ArrayDeque<Object> q = new java.util.ArrayDeque<>();
+            q.add(root); seen.put(root, Boolean.TRUE);
+            String best = null;
+            int budget = 4000;
+            while (!q.isEmpty() && budget-- > 0) {
+                Object o = q.poll();
+                Class<?> k = o.getClass();
+                String kn = k.getName();
+                if (!(kn.startsWith("X.") || kn.startsWith("com.instagram"))) continue;
+                for (Class<?> cc = k; cc != null && cc != Object.class; cc = cc.getSuperclass()) {
+                    for (Field f : cc.getDeclaredFields()) {
+                        if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                        if (f.getType().isPrimitive()) continue;
+                        Object v;
+                        try { f.setAccessible(true); v = f.get(o); } catch (Throwable t) { continue; }
+                        if (v == null || seen.put(v, Boolean.TRUE) != null) continue;
+                        if (v instanceof String) {
+                            String s = (String) v;
+                            if (s.length() >= minLen && s.matches("\\d+")
+                                    && (best == null || s.length() > best.length())) best = s;
+                            continue;
+                        }
+                        if (v instanceof CharSequence || v instanceof Number || v instanceof Boolean) continue;
+                        q.add(v);
+                    }
+                }
+            }
+            return best;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     private static Object reflectRaw(Object obj, String jsonKey, String obfName) {
