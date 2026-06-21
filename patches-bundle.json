@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-06-16T20:38:38",
-  "description": "## [1.1.0](https://github.com/vishnuprasad0/piko/compare/v1.0.1...v1.1.0) (2026-06-16)\n\n### ✨ New Features\n\n* **instagram:** detect unsent DMs, notify, and store for per-chat viewing ([3a51562](https://github.com/vishnuprasad0/piko/commit/3a51562111a654c5f31ba10e2661cff166a0bf7a))",
-  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.0/patches-1.1.0.mpp",
-  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v1.1.0/patches-1.1.0.mpp.asc",
-  "version": "1.1.0"
+  "created_at": "2026-06-19T10:50:49",
+  "description": "## [3.6.0](https://github.com/vishnuprasad0/piko/compare/v3.5.0...v3.6.0) (2026-06-19)\n\n### ✨ New Features\n\n* **dm:** Save deleted messages — captures incoming DMs and marks them when unsent",
+  "download_url": "https://github.com/vishnuprasad0/piko/releases/download/v3.6.0/patches-3.6.0.mpp",
+  "signature_download_url": "https://github.com/vishnuprasad0/piko/releases/download/v3.6.0/patches-3.6.0.mpp.asc",
+  "version": "3.6.0"
 }
