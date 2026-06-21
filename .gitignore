@@ -136,9 +136,10 @@ bin/
 
 .direnv
 
-# Claude Code
+# Local agent / tooling files
 CLAUDE.md
 .claude/
+.tools/
 
 # local RE / test tooling
 .tools/
