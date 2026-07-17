@@ -298,9 +298,10 @@ private fun resolveNames(): InstantsNames {
             ?: throw PatchException("no coroutine-scope helper before the onCaptured\$4 construction.")
 
     // Dispatch: the first 2-arg invoke-static after the onCaptured$4 <init>.
+    // The <init> takes 8 args, so R8 emits invoke-direct/range, not plain invoke-direct.
     val initIdx =
         (ncIndex until insns.size).firstOrNull {
-            insns[it].opcode == Opcode.INVOKE_DIRECT &&
+            (insns[it].opcode == Opcode.INVOKE_DIRECT || insns[it].opcode == Opcode.INVOKE_DIRECT_RANGE) &&
                 (insns[it] as ReferenceInstruction).reference.let { r ->
                     r is MethodReference && r.definingClass == ocType && r.name == "<init>"
                 }
