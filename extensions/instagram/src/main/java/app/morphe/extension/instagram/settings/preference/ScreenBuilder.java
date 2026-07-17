@@ -432,6 +432,15 @@ public class ScreenBuilder {
         if (!(SettingsStatus.miscSection())) return;
 
         // PreferenceCategory category= addCategory(str("piko_category_misc"));
+        if (SettingsStatus.instantsGalleryPost) {
+            addPreference(
+                    helper.switchPreference(
+                            str("piko_instants_gallery_post"),
+                            str("piko_instants_gallery_post_desc"),
+                            Settings.INSTANTS_GALLERY_POST
+                    )
+            );
+        }
         if (SettingsStatus.unlockPlusBenefits) {
             addPreference(
                     helper.switchPreference(

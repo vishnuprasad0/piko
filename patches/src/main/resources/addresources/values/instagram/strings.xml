@@ -301,4 +301,13 @@ Note: On a clean install, the \'Tip\' animation may appear but will stop on its 
     <string name="piko_filter_story_minimum_item_count_desc">Stories having less than x items will be hidden (default 1)</string>
     <string name="piko_filter_story_maximum_item_count">Maximum story items</string>
     <string name="piko_filter_story_maximum_item_count_desc">Stories having more than x items will be hidden (default 9999)</string>
+
+    <!-- Instants gallery post -->
+    <string name="piko_instants_gallery_post">Post Instant from gallery</string>
+    <string name="piko_instants_gallery_post_desc">Open Instagram\'s Instants camera and tap “Add from gallery” to post a photo from your gallery as an Instant.</string>
+    <string name="piko_instants_gallery_decode_failed">Could not load the selected image.</string>
+    <string name="piko_instants_post">Post to Instant</string>
+    <string name="piko_instants_posting">Posting your Instant…</string>
+    <string name="piko_instants_post_failed">Couldn\'t post. Open the Instants camera and try again.</string>
+    <string name="piko_instants_add_from_gallery">Add from gallery</string>
 </resources>
