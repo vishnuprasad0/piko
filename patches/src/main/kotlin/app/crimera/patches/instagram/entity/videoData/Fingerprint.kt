@@ -21,12 +21,14 @@ internal object VideoVersionMapExtensionFingerprint : Fingerprint(
     name = "videoVersionMap",
 )
 
+// Matched on the class name alone: v441 moved these from com/instagram/model/mediasize to
+// com/instagram/api/schemas. The trailing ';' keeps VideoVersion from also matching VideoVersionIntf.
 internal object ImmutablePandoVideoVersionMapperFingerprint : Fingerprint(
-    definingClass = "Lcom/instagram/model/mediasize/ImmutablePandoVideoVersion;",
+    definingClass = "/ImmutablePandoVideoVersion;",
     returnType = "Ljava/util/Map;",
 )
 
 internal object VideoVersionMapperFingerprint : Fingerprint(
-    definingClass = "Lcom/instagram/model/mediasize/VideoVersion;",
+    definingClass = "/VideoVersion;",
     returnType = "Ljava/util/Map;",
 )

@@ -315,11 +315,11 @@ private fun installLegacyOnResumeThemeSync(
                     null
                 }
             }
-    if (selectedIdReads.size != 1) {
-        throw PatchException(
-            "Expected one selected RadioItem id read, found ${selectedIdReads.size}",
-        )
-    }
+// The read that feeds the row constructor is the last one before it; earlier reads into the
+    // same register belong to unrelated loops (v441 builds its label list that way).
+    val selectedIdIndex =
+        selectedIdReads.lastOrNull()
+            ?: throw PatchException("Could not find the selected RadioItem id read")
 
     val packedIdsRegister =
         method.findFreeRegister(
@@ -330,7 +330,7 @@ private fun installLegacyOnResumeThemeSync(
         )
     val selectionTempRegister =
         method.findFreeRegister(
-            selectedIdReads.single() + 1,
+            selectedIdIndex + 1,
             selectedIdRegister,
         )
     val firstParameter = firstParameterRegister(method)
@@ -362,7 +362,6 @@ private fun installLegacyOnResumeThemeSync(
         move-result-object v$listenerRegister
         """.trimIndent(),
     )
-    val selectedIdIndex = selectedIdReads.single()
     method.addInstructions(
         selectedIdIndex + 1,
         """
