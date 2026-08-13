@@ -11,22 +11,20 @@ import java.util.Map;
 import java.util.HashMap;
 import app.morphe.extension.crimera.PikoUtils;
 
-import com.instagram.model.mediasize.VideoVersion;
-import com.instagram.model.mediasize.ImmutablePandoVideoVersion;
-import com.instagram.model.mediasize.VideoVersionIntf;
-
 import app.morphe.extension.crimera.downloader.MediaType;
 
 public class VideoData extends Entity implements MediaInterface {
-    private final VideoVersionIntf obj;
+    // v441 moved these to api.schemas, so importing them would throw NoClassDefFoundError on one
+    // target or the other. Only the simple name is stable.
+    private static final String PANDO_VIDEO_VERSION = "ImmutablePandoVideoVersion";
+
     private final boolean isPandoVideoVersion;
 
     public VideoData(Object obj) {
         super(obj);
 
-        this.obj = (VideoVersionIntf) obj;
-        this.isPandoVideoVersion = obj instanceof ImmutablePandoVideoVersion;
-
+        this.isPandoVideoVersion =
+                obj != null && obj.getClass().getName().endsWith("." + PANDO_VIDEO_VERSION);
     }
 
     private Map immutablePandoVideoVersionMap(){
@@ -77,7 +75,8 @@ public class VideoData extends Entity implements MediaInterface {
     }
 
     public String getUrl() throws Exception {
-        return this.obj.getUrl();
+        // getUrl is declared on each concrete VideoVersion impl, so getDeclaredMethod finds it.
+        return (String) super.getMethod("getUrl");
     }
 
     public MediaType getMediaType(){
