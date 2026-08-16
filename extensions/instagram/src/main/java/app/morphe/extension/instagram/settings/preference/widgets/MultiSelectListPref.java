@@ -10,6 +10,8 @@ import android.content.Context;
 import android.preference.MultiSelectListPreference;
 import android.preference.Preference;
 import android.util.AttributeSet;
+import android.view.View;
+import android.view.ViewGroup;
 
 import app.morphe.extension.shared.ResourceUtils;
 import app.morphe.extension.instagram.settings.Settings;
@@ -20,7 +22,7 @@ public class MultiSelectListPref extends MultiSelectListPreference {
     private static Helper helper;
 
     public MultiSelectListPref(Context context) {
-        super(context);
+        super(InstagramPreferenceStyle.dialogContext(context));
         helper = new Helper(context);
         init();
     }
@@ -59,7 +61,7 @@ public class MultiSelectListPref extends MultiSelectListPreference {
         }
         else if (key == Settings.ACTION_BAR_CHAT.key) {
             entries = ResourceUtils.getStringArray("piko_array_action_bar_chat");
-            entriesValues = ResourceUtils.getStringArray("piko_array_action_bar_user_profile_val");
+            entriesValues = ResourceUtils.getStringArray("piko_array_action_bar_chat_val");
         }
         else if (key == Settings.ACTION_BAR_INBOX.key) {
             entries = ResourceUtils.getStringArray("piko_array_action_bar_inbox");
@@ -75,5 +77,15 @@ public class MultiSelectListPref extends MultiSelectListPreference {
         }
         setEntries(entries);
         setEntryValues(entriesValues);
+    }
+
+    @Override
+    protected View onCreateView(ViewGroup parent) {
+        return InstagramPreferenceStyle.createPreferenceView(getContext(), InstagramPreferenceStyle.TRAILING_CHEVRON);
+    }
+
+    @Override
+    protected void onBindView(View view) {
+        InstagramPreferenceStyle.bindText(this, view);
     }
 }

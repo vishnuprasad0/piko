@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Settings Search -->
+    <string name="piko_settings_search_hint">Piko設定を検索</string>
+    <string name="piko_settings_search_clear">入力を削除</string>
+    <string name="piko_settings_search_no_results">「%s」の検索結果はありません</string>
     <!-- Premium Settings -->
     <string name="piko_title_premium">プレミアム</string>
     <string name="piko_pref_undo_posts">ポストの取り消しを有効化</string>
@@ -32,9 +36,15 @@
     <string name="piko_pref_native_page_desc">これらのPikoネイティブ機能は、ポストのメニューから使用できます。</string>
     <string name="piko_title_native_downloader">ネイティブダウンローダー</string>
     <string name="piko_title_native_downloader_toggle">ネイティブダウンローダーを有効化</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res">常に最高画質の動画を自動でダウンロード</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res_desc">単一の動画ではダイアログを表示せず、利用可能な最高画質ですぐにダウンロードします。</string>
+    <string name="piko_pref_native_downloader_show_download_icon">ダウンロードアイコンを表示</string>
+    <string name="piko_pref_native_downloader_show_copy_icon">コピーアイコンを表示</string>
+    <string name="piko_pref_native_downloader_show_variants_icon">解像度アイコンを表示</string>
     <string name="piko_pref_native_downloader_inline_button">インラインバーにダウンロードボタンを表示</string>
     <string name="piko_pref_native_downloader_inline_button_desc">インラインバーにダウンロードボタンを追加します</string>
     <string name="piko_pref_native_downloader_alert_title">メディアをダウンロード</string>
+    <string name="piko_video_variants">動画の解像度</string>
     <string name="piko_pref_native_downloader_download_all">すべてダウンロード</string>
     <string name="piko_pref_native_downloader_no_media">メディアが見つかりません</string>
     <string name="piko_pref_native_downloader_filename_title">ファイル名のパターンを選択</string>
@@ -127,8 +137,6 @@
     <string name="piko_pref_pause_search_suggestion_desc">検索候補はローカルに保存されなくなります</string>
     <string name="piko_pref_search_suggestion">検索候補を削除</string>
     <string name="piko_pref_search_suggestion_desc">[話題を検索] タブの検索候補を非表示または削除します</string>
-    <string name="piko_disunify_xchat_system">xchatシステムを無効化</string>
-    <string name="piko_disunify_xchat_system_desc">メッセージや共有シートなどの従来の機能を復活させます</string>
     <string name="piko_legacy_share_link">旧式の共有リンク</string>
     <string name="piko_block_redirecting_to_x_lite">X Liteへのリダイレクトを無効化</string>
     <!-- Feature flags Settings -->
@@ -157,8 +165,8 @@
     <string name="piko_pref_show_poll_result">投票結果を表示</string>
     <string name="piko_pref_show_poll_result_desc">投票せずに投票結果を表示できるようにします</string>
     <string name="piko_pref_hide_community_notes">コミュニティノートを削除</string>
-    <string name="piko_pref_hide_immersive_player">没入型プレーヤーを削除</string>
-    <string name="piko_pref_hide_immersive_player_desc">動画再生時にスワイプして他の動画を表示する機能を無効化します</string>
+    <string name="piko_pref_hide_immersive_player">没入型プレーヤーを無効化</string>
+    <string name="piko_pref_hide_immersive_player_desc">上にスワイプしてより多くの動画を視聴できる新しいビデオプレーヤーを無効にします</string>
     <string name="piko_pref_enable_vid_auto_advance">動画の自動スクロールを有効化</string>
     <string name="piko_pref_enable_vid_auto_advance_desc">没入型プレーヤーで自動スクロールを有効化します</string>
     <string name="piko_pref_hide_hidden_replies">「非表示の返信」を削除</string>
@@ -241,8 +249,6 @@
     <string name="piko_pref_app_restart_rec">アプリの再起動を推奨します</string>
     <string name="piko_dialog_delete_title">削除</string>
     <string name="piko_dialog_delete_message">%sを削除しますか？</string>
-    <string name="piko_single_page_settings">全ての設定を表示</string>
-    <string name="piko_single_page_settings_desc">カテゴリー分けをせずに、1つのページに全てのPiko設定を表示します</string>
     <string name="piko_pref_search_type_ahead_users">ユーザー</string>
     <string name="piko_pref_search_type_ahead_events">イベント</string>
     <string name="piko_pref_search_type_ahead_ordered_section">並び替え</string>
@@ -277,6 +283,7 @@
     <string name="piko_app_icon_name_legacy_icon_4">Legacy Icon 4</string>
     <string name="piko_app_icon_name_legacy_blue">Legacy Blue</string>
     <string name="piko_app_icon_name_twitter_blue">Twitter Blue</string>
+    <string name="piko_app_icon_name_material_you">Material You</string>
     <string name="piko_app_icon_name_earth">Earth</string>
     <string name="piko_app_icon_name_moon">Moon</string>
     <string name="piko_app_icon_name_mars">Mars</string>
@@ -381,4 +388,6 @@ https://github.com/crimera/piko/blob/dev/docs/about_login_token_patch.md
     <string name="piko_login_token_import_success_reopen_required">アプリを再起動してください</string>
     <string name="piko_login_token_import_failed_missing_info">エラー:「username」、「token」、または「secret」が見つかりません。</string>
     <string name="piko_login_token_import_failed_already_exist">アカウントの追加に失敗しました(既に存在している可能性があります)</string>
+    <string name="piko_ok">OK</string>
+    <string name="piko_cancel">キャンセル</string>
 </resources>

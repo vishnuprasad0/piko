@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Settings Search -->
+    <string name="piko_settings_search_hint">Piko ayarlarında ara</string>
+    <string name="piko_settings_search_clear">Girişi temizle</string>
+    <string name="piko_settings_search_no_results">\"%s\" için sonuç bulunamadı</string>
     <!-- Premium Settings -->
     <string name="piko_title_premium">Premium</string>
     <string name="piko_pref_undo_posts">Gönderileri geri alma özelliğini etkinleştirin</string>
@@ -32,9 +36,15 @@
     <string name="piko_pref_native_page_desc">Bu yerleşik piko özellikleri gönderi menüsünde mevcut.</string>
     <string name="piko_title_native_downloader">Yerel indirici</string>
     <string name="piko_title_native_downloader_toggle">Yerel indirmeyi etkinleştir</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res">En yüksek video çözünürlüğünü otomatik indir</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res_desc">Seçim penceresini atla ve tekil videolar için mevcut en yüksek çözünürlüğü hemen indir</string>
+    <string name="piko_pref_native_downloader_show_download_icon">İndirme simgesini göster</string>
+    <string name="piko_pref_native_downloader_show_copy_icon">Kopyalama simgesini göster</string>
+    <string name="piko_pref_native_downloader_show_variants_icon">Varyantlar simgesini göster</string>
     <string name="piko_pref_native_downloader_inline_button">İndirme butonunu satır içinde göster</string>
     <string name="piko_pref_native_downloader_inline_button_desc">Gönderi işlem çubuğuna doğrudan bir indirme düğmesi ekler</string>
     <string name="piko_pref_native_downloader_alert_title">Medyayı indir</string>
+    <string name="piko_video_variants">Video çeşitleri</string>
     <string name="piko_pref_native_downloader_download_all">Hepsini indir</string>
     <string name="piko_pref_native_downloader_no_media">Medya bulunamadı</string>
     <string name="piko_pref_native_downloader_filename_title">Dosya adı desenini kaydet</string>
@@ -127,8 +137,6 @@
     <string name="piko_pref_pause_search_suggestion_desc">Arama önerileri yerel olarak kaydedilmez</string>
     <string name="piko_pref_search_suggestion">Arama önerilerini gizle</string>
     <string name="piko_pref_search_suggestion_desc">Keşfet bölümünde arama önerilerini gizler</string>
-    <string name="piko_disunify_xchat_system">Xchat sistemini ayırma</string>
-    <string name="piko_disunify_xchat_system_desc">Mesajlar ve paylaşım sayfası gibi eski özellikleri geri getirir</string>
     <string name="piko_legacy_share_link">Türkçe</string>
     <string name="piko_block_redirecting_to_x_lite">X Lite sürümüne yönlendirmeyi engelle</string>
     <!-- Feature flags Settings -->
@@ -157,10 +165,10 @@
     <string name="piko_pref_show_poll_result">Anket sonuçlarını göster</string>
     <string name="piko_pref_show_poll_result_desc">Oy vermeden anket sonuçlarını görüntüle</string>
     <string name="piko_pref_hide_community_notes">Topluluk notlarını gizle</string>
-    <string name="piko_pref_hide_immersive_player">Tam ekran oynatıcıyı gizle</string>
-    <string name="piko_pref_hide_immersive_player_desc">Video oynatıcıda yukarı kaydırarak daha fazla video açma özelliğini kaldırır</string>
+    <string name="piko_pref_hide_immersive_player">Sürükleyici oynatıcıyı devre dışı bırak</string>
+    <string name="piko_pref_hide_immersive_player_desc">Yukarı kaydırarak daha fazla video izlemenizi sağlayan yeni video oynatıcıyı devre dışı bırakır</string>
     <string name="piko_pref_enable_vid_auto_advance">Otomatik kaydırmayı etkinleştir</string>
-    <string name="piko_pref_enable_vid_auto_advance_desc">Immersive görünümde video otomatik kaydırmayı etkinleştirir</string>
+    <string name="piko_pref_enable_vid_auto_advance_desc">Sürükleyici oynatıcıda otomatik video kaydırmayı etkinleştirir</string>
     <string name="piko_pref_hide_hidden_replies">Gizli yanıtları gizle</string>
     <string name="piko_pref_force_hd">HD videoları zorla</string>
     <string name="piko_pref_force_hd_desc">Videolar her zaman en yüksek kalitede oynatılır</string>
@@ -234,14 +242,13 @@
     <string name="piko_pref_patch_info">Yama Bilgileri</string>
     <string name="piko_pref_version_info">Sürüm Bilgisi</string>
     <string name="piko_changelogs_title">Değişiklikler</string>
+    <string name="piko_debug">Piko hata ayıklama</string>
     <string name="piko_pref_patches">Yamalar</string>
     <string name="piko_pref_included">Dahil</string>
     <string name="piko_pref_excluded">Hariç</string>
     <string name="piko_pref_app_restart_rec">Uygulamanın yeniden başlatılması önerilir</string>
     <string name="piko_dialog_delete_title">Sil</string>
     <string name="piko_dialog_delete_message">Sil%s?</string>
-    <string name="piko_single_page_settings">Tek sayfa ayarları</string>
-    <string name="piko_single_page_settings_desc">Ayarları tek sayfada görüntüleyin</string>
     <string name="piko_pref_search_type_ahead_users">Kullanıcılar</string>
     <string name="piko_pref_search_type_ahead_events">Etkinlikler</string>
     <string name="piko_pref_search_type_ahead_ordered_section">Sıralı bölüm</string>
@@ -276,6 +283,7 @@
     <string name="piko_app_icon_name_legacy_icon_4">Eski İkon 4</string>
     <string name="piko_app_icon_name_legacy_blue">Eski Mavi</string>
     <string name="piko_app_icon_name_twitter_blue">Twitter Mavi</string>
+    <string name="piko_app_icon_name_material_you">Material You</string>
     <string name="piko_app_icon_name_earth">Dünya</string>
     <string name="piko_app_icon_name_moon">Ay</string>
     <string name="piko_app_icon_name_mars">Mars</string>
@@ -380,4 +388,6 @@ Bu özelliği kullanmadan önce bu sayfayı okumanız tavsiye edilir. Belirteçl
     <string name="piko_login_token_import_success_reopen_required">Uygulamayı yeniden başlatın</string>
     <string name="piko_login_token_import_failed_missing_info">Hata: \"username\" (kullanıcı adı), \"token\" (belirteç) veya \"secret\" (gizli anahtar) eksik</string>
     <string name="piko_login_token_import_failed_already_exist">Hesap eklenemedi (zaten mevcut olabilir)</string>
+    <string name="piko_ok">Tamam</string>
+    <string name="piko_cancel">İptal et</string>
 </resources>

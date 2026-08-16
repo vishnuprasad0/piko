@@ -1,3 +1,183 @@
+## [3.9.0-dev.7](https://github.com/crimera/piko/compare/v3.9.0-dev.6...v3.9.0-dev.7) (2026-08-10)
+
+### 🔧 Improvements
+
+* **Instagram:** Turn off `Disable analytics` by default ([#1674](https://github.com/crimera/piko/issues/1674)) ([753a70b](https://github.com/crimera/piko/commit/753a70be81449c27f0a8e056f7f0e938a11e964e))
+
+## [3.9.0-dev.6](https://github.com/crimera/piko/compare/v3.9.0-dev.5...v3.9.0-dev.6) (2026-08-09)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** Fix default flag state while extracting recommended flags map ([82785a8](https://github.com/crimera/piko/commit/82785a858bae02ee11bd8ff07f06fa260bcceea2))
+
+## [3.9.0-dev.5](https://github.com/crimera/piko/compare/v3.9.0-dev.4...v3.9.0-dev.5) (2026-08-09)
+
+### ✨ New Features
+
+* **Instagram:** Added some recommended flags ([#1651](https://github.com/crimera/piko/issues/1651)) ([1cb0687](https://github.com/crimera/piko/commit/1cb068703fc101903272bea21fc93fe12ddde662))
+* **Instagram:** Made `Recommended flags` into patch ([f81fc79](https://github.com/crimera/piko/commit/f81fc7992792a72ecfc7d006590db9a506c86caa))
+
+## [3.9.0-dev.4](https://github.com/crimera/piko/compare/v3.9.0-dev.3...v3.9.0-dev.4) (2026-08-03)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** Fix user data entity fingerprints ([5d83613](https://github.com/crimera/piko/commit/5d8361334805470b2cc94fcfd0f2e4623a4d6be0))
+* **Twitter:** Fix inverted upsell flag boolean ([8a8b9e1](https://github.com/crimera/piko/commit/8a8b9e1a92da7d80419679ab0c900647bffed44a))
+
+### ✨ New Features
+
+* **Instagram:** Added some recommended flags ([40ddc7e](https://github.com/crimera/piko/commit/40ddc7ee525e351ae57e71055a81d995207e9917))
+
+## [3.9.0-dev.3](https://github.com/crimera/piko/compare/v3.9.0-dev.2...v3.9.0-dev.3) (2026-08-03)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** Check and add external downloader options in settings ([c6651df](https://github.com/crimera/piko/commit/c6651df52aab328755ea4138f87ab079cad25cf1))
+* **instagram:** patch GRAY_1600 to fix Compose surfaces staying gray in AMOLED mode ([#1596](https://github.com/crimera/piko/issues/1596)) ([07d08d4](https://github.com/crimera/piko/commit/07d08d4ba4a291bb3f454ec3e92ca9cb6f07975d))
+* **Twitter:** "Change app icon" is broken on recent X versions ([#1624](https://github.com/crimera/piko/issues/1624)) ([350779d](https://github.com/crimera/piko/commit/350779d06bdf8c86992332387062bb42a6e236bc))
+* **Twitter:** Fix check and add `more info on profile` preference ([97f9dca](https://github.com/crimera/piko/commit/97f9dcaad76e6bd61f5a3347ced7e778155f47b1))
+* **twitter:** replace ic_vector_x logo in Bring back twitter patch ([7b6c7e9](https://github.com/crimera/piko/commit/7b6c7e9949422a470563a50cb1efd36d0416fa50))
+
+### ✨ New Features
+
+* **instagram:** add material you and amoled theme controls ([#1631](https://github.com/crimera/piko/issues/1631)) ([840492a](https://github.com/crimera/piko/commit/840492a46c603fb99e55ec03fb1ec47c735c169a))
+* **Instagram:** Added `Recommended flags` section ([ff31eda](https://github.com/crimera/piko/commit/ff31eda2ea878c77820c455088b4d23c561e049a))
+* **Instagram:** Added more options in profile options menu ([#1638](https://github.com/crimera/piko/issues/1638)) ([ad61869](https://github.com/crimera/piko/commit/ad61869cc0711670f83fea67c2bd959b95a0ad62))
+* **Twitter:** Add Dynamic color switch toggle ([#1582](https://github.com/crimera/piko/issues/1582)) ([c3de8d8](https://github.com/crimera/piko/commit/c3de8d8df101203139ff3171bf8f600ef3eef028))
+
+## [3.9.0-dev.2](https://github.com/crimera/piko/compare/v3.9.0-dev.1...v3.9.0-dev.2) (2026-07-27)
+
+### 🐛 Bug Fixes
+
+* **instagram:** prevent inbox action bar verifier crash ([b65cdb2](https://github.com/crimera/piko/commit/b65cdb26c195891a12e2b7ad64c90cb21e56b042))
+* **instagram:** restore profile action bar hooks ([5cf2a42](https://github.com/crimera/piko/commit/5cf2a427c2f8b3831276fe8cbc6a12178aa3dbe4))
+
+### ✨ New Features
+
+* **Instagram:** Added mappings for `439.0.0.37.89` ([b335af3](https://github.com/crimera/piko/commit/b335af3f20cefe15d6f5342fd5cc41d692eb9fac))
+
+## [3.9.0-dev.1](https://github.com/crimera/piko/compare/v3.8.0...v3.9.0-dev.1) (2026-07-26)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** Fix reels current media logic ([40836e8](https://github.com/crimera/piko/commit/40836e83e10b1f023e7ec4c1dca4f1407ba6d638))
+* **Instagram:** Fix register issue while hooking reel overflow menu ([83786a8](https://github.com/crimera/piko/commit/83786a8d379b7ae05bfaa73ab07c94172ba9d9d3))
+* **instagram:** pass current carousel index to reel overflow buttons ([#1586](https://github.com/crimera/piko/issues/1586)) ([a80bf4a](https://github.com/crimera/piko/commit/a80bf4af5bdc1ff402793dbe0209a642c015b3fa))
+* **Twitter:** Fix `More information on profile` fingerprint on 12.11 ([3b5c945](https://github.com/crimera/piko/commit/3b5c94596dc45af901c0c6efbd72af0e03a12e9e))
+
+### ✨ New Features
+
+* **Instagram:** New patch to block onboarding permission prompts ([9b6e569](https://github.com/crimera/piko/commit/9b6e56956ecb6df916afc1743a6cbb3b8e463b33))
+
+### 🚀 Updated App Support
+
+* **Instagram:** Add support for `439.0.0.37.89` ([3e38d22](https://github.com/crimera/piko/commit/3e38d22c56b37ded2861be7d24f0afea0f0c7034))
+* **Twitter:** Add support for `12.11.0-release.0` ([cdca6a8](https://github.com/crimera/piko/commit/cdca6a84f94366aa91c1c2fcb533056413a95d61))
+
+## [3.8.0](https://github.com/crimera/piko/compare/v3.7.0...v3.8.0) (2026-07-24)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** Fix app crash on comment media download([#1568](https://github.com/crimera/piko/issues/1568)) ([b3b01f7](https://github.com/crimera/piko/commit/b3b01f7f5a9f8f01b66a32299cec06a3748e23b3))
+* **Instagram:** Fix chat action bar function name ([1401808](https://github.com/crimera/piko/commit/140180878895841fc8437dc21a39ab7941f79540))
+* **Instagram:** Fix opening links ([ba9b4c4](https://github.com/crimera/piko/commit/ba9b4c43af6e4a42ce0654d11aa26a3d28496247))
+* **Instagram:** Fix Piko settings color issues ([f1f278a](https://github.com/crimera/piko/commit/f1f278a87665be59218dcc54af983b411802fe0f))
+* **Instagram:** match piko settings background to amoled patch ([#1543](https://github.com/crimera/piko/issues/1543)) ([56003dc](https://github.com/crimera/piko/commit/56003dc4b68e6969e208570c45b583bcf709ceb3))
+* **Instagram:** Match piko settings highlight to theme ([#1548](https://github.com/crimera/piko/issues/1548)) ([c428e7e](https://github.com/crimera/piko/commit/c428e7ea762cf2ec94e5e9a9f17ea207a976176f))
+* **Instagram:** Match story mention dialog to Instagram theme ([#1554](https://github.com/crimera/piko/issues/1554)) ([08563ca](https://github.com/crimera/piko/commit/08563ca54d486585e5fc4bc7c432d6f5f19e6d28))
+* **instagram:** preserve settings fragment on recreation ([#1546](https://github.com/crimera/piko/issues/1546)) ([f57ddcc](https://github.com/crimera/piko/commit/f57ddcc555dd487f57d959e5adc625f0f15ed80c))
+* **instagram:** Refine piko settings title styling ([#1534](https://github.com/crimera/piko/issues/1534)) ([ce69be6](https://github.com/crimera/piko/commit/ce69be69e8aea7aee04bdf00db5a413bbb849b2f))
+* **Instagram:** Refresh localized download folder path ([#1537](https://github.com/crimera/piko/issues/1537)) ([72ce666](https://github.com/crimera/piko/commit/72ce66602c601a2e1b600367bd04430419dadc59))
+* **Instagram:** Restore and sync ghost action bar icons ([#1545](https://github.com/crimera/piko/issues/1545)) ([1240faf](https://github.com/crimera/piko/commit/1240faf55fa68867e9517bbd017e1cd1978cfa72))
+* **instagram:** restore native off switch colors ([#1533](https://github.com/crimera/piko/issues/1533)) ([71b0b00](https://github.com/crimera/piko/commit/71b0b007096756e1c801c14a1e8c21e2f7cada4a))
+* **Twitter - Native Downloader:** Add missing downloadAll method and fix null checks ([ba9d036](https://github.com/crimera/piko/commit/ba9d036e7e01a2455e291504ec4984c9b94cda94))
+* **Twitter - Native Downloader:** Clean stale temp file before download and auto-retry legacy resolution if orig fails ([a9d9bd1](https://github.com/crimera/piko/commit/a9d9bd15f9895d723a3bb9eea1ea2d56cd6aa3e4))
+* **Twitter - Settings:** Guard native downloader preferences and category by patch status ([d2ac7a0](https://github.com/crimera/piko/commit/d2ac7a08f9ac2679e7b3a1cb999f79e11fae2e76))
+* **Twitter:** Apply custom sharing domain to copied links ([#1555](https://github.com/crimera/piko/issues/1555)) ([8e9bec8](https://github.com/crimera/piko/commit/8e9bec895638b5de3c585647496676915b610040))
+* **Twitter:** Create category only if the patch is patched ([f3538a3](https://github.com/crimera/piko/commit/f3538a30d2c1d98a3c56e1fe0a7b5222b1ba35ae))
+* **Twitter:** Fix `Custom share menu` crash on image view ([f4d2e53](https://github.com/crimera/piko/commit/f4d2e53171621d02f2b04c0a0d4ff220e2e4c799))
+* **Twitter:** Fix high resolution image url ([5d07767](https://github.com/crimera/piko/commit/5d07767458b387c85448801851ab4d2de01caf12))
+* **Twitter:** Fix inverted number round off ([c0a04aa](https://github.com/crimera/piko/commit/c0a04aac74604e690cacd8925c8bd9f4d13a4664))
+* **Twitter:** Fix open supported links activity ([8a1db76](https://github.com/crimera/piko/commit/8a1db76b9c9109db02ee4278b5a6891e5cc2b246))
+* **twitter:** Handle bad response during tweet info API ([#1410](https://github.com/crimera/piko/issues/1410)) ([522f7d1](https://github.com/crimera/piko/commit/522f7d13e9f29bae854073a74c1d82cfe1874950))
+* **Twitter:** Tweet link pattern ([d2500ea](https://github.com/crimera/piko/commit/d2500ead98dd5bd77ba97f1ef2ac8388f7b559f0))
+
+### ✨ New Features
+
+* **Instagram:** Added `Filter stories` patch ([c62d02a](https://github.com/crimera/piko/commit/c62d02adf1f0160f8bc72c4eb4e521e06b89c0be))
+* **Instagram:** Added `Mark chat as read manually` patch ([1d267c8](https://github.com/crimera/piko/commit/1d267c8f67d1f7153e50a0166d327056e1643603))
+* **Instagram:** Added ability to remove Piko preference ([3e29d69](https://github.com/crimera/piko/commit/3e29d69e0af53df4c0814bbd5e057ced196633c6))
+* **instagram:** Disable swipe to create ([#1539](https://github.com/crimera/piko/issues/1539)) ([eaea2e9](https://github.com/crimera/piko/commit/eaea2e9db2db929409247c4a8b0ec865f13e087b))
+* **Instagram:** Include debug option on thread long press ([c9df942](https://github.com/crimera/piko/commit/c9df9426377f62225c8ee63e0872563f99fd7d50))
+* **instagram:** Material You theme ([#1509](https://github.com/crimera/piko/issues/1509)) ([9d97f59](https://github.com/crimera/piko/commit/9d97f590cd17e79c66a39deeedcb12a2f9f510f8))
+* **Twitter - Native Downloader:** Add long-press to download all inline button ([f3d11e6](https://github.com/crimera/piko/commit/f3d11e653fd90176cdb2edc21d375447f63a4c39))
+* **Twitter:** Add piko settings to the app icon long-press shortcut ([#1412](https://github.com/crimera/piko/issues/1412)) ([2eb970b](https://github.com/crimera/piko/commit/2eb970bfc7160256438fa854e5be0a0513c86877))
+* **Twitter:** Add Search Piko settings ([#1516](https://github.com/crimera/piko/issues/1516)) ([fed4f51](https://github.com/crimera/piko/commit/fed4f51e3b88b4f7349af8c13a3ea61ecebb4c7c))
+* **Twitter:** Added `Custom share menu` patch ([23f0a32](https://github.com/crimera/piko/commit/23f0a3237b57eea75443062ade78fc3be093fb33))
+* **Twitter:** Added `External downloader` patch ([0e9a9f7](https://github.com/crimera/piko/commit/0e9a9f743364d1132d18d289a21e7e86c929f998))
+* **Twitter:** Added `More information on profile` patch ([1167728](https://github.com/crimera/piko/commit/116772873059fe2b66b0708524a89cd90acac6e1))
+* **Twitter:** Added new download dialog box ([9fca347](https://github.com/crimera/piko/commit/9fca347fc14da4d95c8c8a1a74fc691f1481077a))
+
+### 🚀 Updated App Support
+
+* **Twitter:** Bump support to `12.7.1-release.0` ([1d31338](https://github.com/crimera/piko/commit/1d313381d08afb0ba2f40f9f01673fa5cf5b6cce))
+
+### 🔧 Improvements
+
+* **Instagram:** Added inbox action bar customization ([7f0a219](https://github.com/crimera/piko/commit/7f0a219676976a8832744d889fe563129ea479bb))
+* **Instagram:** Added more flags to improve the user experience ([#1443](https://github.com/crimera/piko/issues/1443)) ([d4835d2](https://github.com/crimera/piko/commit/d4835d26a358136777c6beccf299ab2268ecf709))
+* **Instagram:** Added more story filters ([bab0fc6](https://github.com/crimera/piko/commit/bab0fc653d2ec9642ee608a0d57cd76380af944b))
+* **Instagram:** Adjust DM section position on piko settings ([4646c7d](https://github.com/crimera/piko/commit/4646c7d24823f31ab530d2b2b85bfe74bae41db3))
+* **Instagram:** Enhance story mention dialog box ([8d77056](https://github.com/crimera/piko/commit/8d7705684809cfa279ca0b517cecfc0911bcc54a))
+* **Instagram:** Handle edge cases of comment button interaction ([fe847cb](https://github.com/crimera/piko/commit/fe847cbce8bc1fac1b324af9ac494b6d17a3ca19))
+* **Instagram:** Improve action bar icon selection options ([a3b2b73](https://github.com/crimera/piko/commit/a3b2b7338659a978adba480595f9e96fc2b0d21f))
+* **Instagram:** Include color friendship indicator ([48f5850](https://github.com/crimera/piko/commit/48f5850322a04c7dce982a1b4c61a9869d3635a2))
+* **Instagram:** Include verification tick on story mention ([92b043b](https://github.com/crimera/piko/commit/92b043bb9a5d708f375bbaf4fe897407311d5bb5))
+* **Instagram:** Move DM long press button check to java ([b2e4e71](https://github.com/crimera/piko/commit/b2e4e71e1e64fdeb06e0130271e8366d2fc4d200))
+* **Instagram:** Remove unused preference ([232b4d6](https://github.com/crimera/piko/commit/232b4d6584750510088e4fe4e216534b8ce1ed86))
+* **Instagram:** Story mention dialog width ([68b3c94](https://github.com/crimera/piko/commit/68b3c94f9efa7d6a7868dd63357e5c5a579d11c5))
+* **Instagram:** Update download path handling and permissions ([#1500](https://github.com/crimera/piko/issues/1500)) ([76cdcb3](https://github.com/crimera/piko/commit/76cdcb3cfd62fa19cd79cdead1a3a2dd082585b2))
+* **Twitter:** Introduce debug option and streamline About section buttons ([e64a7e0](https://github.com/crimera/piko/commit/e64a7e0a1978757b8c949971f3b0da1e5e4879ed))
+* **Twitter:** Make the tweet-shots have rounded edges ([020589e](https://github.com/crimera/piko/commit/020589e5b1c3681396c7654f9d34604fbbc8f391))
+* **Twitter:** Standardise share menu on click handling ([9aecb6b](https://github.com/crimera/piko/commit/9aecb6b68e71c70d3e4075afe2d311efd254f22c))
+
+## [3.8.0-dev.6](https://github.com/crimera/piko/compare/v3.8.0-dev.5...v3.8.0-dev.6) (2026-07-23)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** Match piko settings highlight to theme ([#1548](https://github.com/crimera/piko/issues/1548)) ([c428e7e](https://github.com/crimera/piko/commit/c428e7ea762cf2ec94e5e9a9f17ea207a976176f))
+* **Instagram:** Match story mention dialog to Instagram theme ([#1554](https://github.com/crimera/piko/issues/1554)) ([08563ca](https://github.com/crimera/piko/commit/08563ca54d486585e5fc4bc7c432d6f5f19e6d28))
+* **Instagram:** Restore and sync ghost action bar icons ([#1545](https://github.com/crimera/piko/issues/1545)) ([1240faf](https://github.com/crimera/piko/commit/1240faf55fa68867e9517bbd017e1cd1978cfa72))
+* **Twitter - Native Downloader:** Add missing downloadAll method and fix null checks ([ba9d036](https://github.com/crimera/piko/commit/ba9d036e7e01a2455e291504ec4984c9b94cda94))
+* **Twitter - Native Downloader:** Clean stale temp file before download and auto-retry legacy resolution if orig fails ([a9d9bd1](https://github.com/crimera/piko/commit/a9d9bd15f9895d723a3bb9eea1ea2d56cd6aa3e4))
+* **Twitter - Settings:** Guard native downloader preferences and category by patch status ([d2ac7a0](https://github.com/crimera/piko/commit/d2ac7a08f9ac2679e7b3a1cb999f79e11fae2e76))
+* **Twitter:** Apply custom sharing domain to copied links ([#1555](https://github.com/crimera/piko/issues/1555)) ([8e9bec8](https://github.com/crimera/piko/commit/8e9bec895638b5de3c585647496676915b610040))
+* **Twitter:** Create category only if the patch is patched ([f3538a3](https://github.com/crimera/piko/commit/f3538a30d2c1d98a3c56e1fe0a7b5222b1ba35ae))
+
+### ✨ New Features
+
+* **instagram:** Material You theme ([#1509](https://github.com/crimera/piko/issues/1509)) ([9d97f59](https://github.com/crimera/piko/commit/9d97f590cd17e79c66a39deeedcb12a2f9f510f8))
+* **Twitter - Native Downloader:** Add long-press to download all inline button ([f3d11e6](https://github.com/crimera/piko/commit/f3d11e653fd90176cdb2edc21d375447f63a4c39))
+
+## [3.8.0-dev.5](https://github.com/crimera/piko/compare/v3.8.0-dev.4...v3.8.0-dev.5) (2026-07-19)
+
+### 🐛 Bug Fixes
+
+* **Instagram:** match piko settings background to amoled patch ([#1543](https://github.com/crimera/piko/issues/1543)) ([56003dc](https://github.com/crimera/piko/commit/56003dc4b68e6969e208570c45b583bcf709ceb3))
+* **instagram:** preserve settings fragment on recreation ([#1546](https://github.com/crimera/piko/issues/1546)) ([f57ddcc](https://github.com/crimera/piko/commit/f57ddcc555dd487f57d959e5adc625f0f15ed80c))
+* **instagram:** Refine piko settings title styling ([#1534](https://github.com/crimera/piko/issues/1534)) ([ce69be6](https://github.com/crimera/piko/commit/ce69be69e8aea7aee04bdf00db5a413bbb849b2f))
+* **Instagram:** Refresh localized download folder path ([#1537](https://github.com/crimera/piko/issues/1537)) ([72ce666](https://github.com/crimera/piko/commit/72ce66602c601a2e1b600367bd04430419dadc59))
+* **instagram:** restore native off switch colors ([#1533](https://github.com/crimera/piko/issues/1533)) ([71b0b00](https://github.com/crimera/piko/commit/71b0b007096756e1c801c14a1e8c21e2f7cada4a))
+* **Twitter:** Fix high resolution image url ([5d07767](https://github.com/crimera/piko/commit/5d07767458b387c85448801851ab4d2de01caf12))
+* **Twitter:** Fix inverted number round off ([c0a04aa](https://github.com/crimera/piko/commit/c0a04aac74604e690cacd8925c8bd9f4d13a4664))
+* **Twitter:** Fix open supported links activity ([8a1db76](https://github.com/crimera/piko/commit/8a1db76b9c9109db02ee4278b5a6891e5cc2b246))
+
+### ✨ New Features
+
+* **instagram:** Disable swipe to create ([#1539](https://github.com/crimera/piko/issues/1539)) ([eaea2e9](https://github.com/crimera/piko/commit/eaea2e9db2db929409247c4a8b0ec865f13e087b))
+* **Twitter:** Add Search Piko settings ([#1516](https://github.com/crimera/piko/issues/1516)) ([fed4f51](https://github.com/crimera/piko/commit/fed4f51e3b88b4f7349af8c13a3ea61ecebb4c7c))
+* **Twitter:** Added new download dialog box ([9fca347](https://github.com/crimera/piko/commit/9fca347fc14da4d95c8c8a1a74fc691f1481077a))
+
 ## [3.8.0-dev.4](https://github.com/crimera/piko/compare/v3.8.0-dev.3...v3.8.0-dev.4) (2026-07-12)
 
 ### 🐛 Bug Fixes

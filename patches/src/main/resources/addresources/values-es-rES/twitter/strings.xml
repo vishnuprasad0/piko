@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Settings Search -->
+    <string name="piko_settings_search_hint">Buscar configuración de Piko</string>
+    <string name="piko_settings_search_clear">Entrada limpia</string>
+    <string name="piko_settings_search_no_results">No hay resultados para \"%s\"</string>
     <!-- Premium Settings -->
     <string name="piko_title_premium">Prémium</string>
     <string name="piko_pref_undo_posts">Habilitar deshacer publicaciones</string>
@@ -32,9 +36,15 @@
     <string name="piko_pref_native_page_desc">Estas funciones nativas de Piko están disponibles en el menú de publicaciones.</string>
     <string name="piko_title_native_downloader">Descargador nativo</string>
     <string name="piko_title_native_downloader_toggle">Habilitar gestor de descarga nativo</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res">Descarga automáticamente la resolución de vídeo más alta</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res_desc">Omita el cuadro de diálogo de selección y descargue inmediatamente la mejor resolución disponible para cada vídeo.</string>
+    <string name="piko_pref_native_downloader_show_download_icon">Mostrar icono de descarga</string>
+    <string name="piko_pref_native_downloader_show_copy_icon">Mostrar icono de copia</string>
+    <string name="piko_pref_native_downloader_show_variants_icon">Mostrar variantes de ícono</string>
     <string name="piko_pref_native_downloader_inline_button">Mostrar botón de descarga en línea</string>
     <string name="piko_pref_native_downloader_inline_button_desc">Agrega un botón de descarga a la barra superior en publicaciones</string>
     <string name="piko_pref_native_downloader_alert_title">Descargar medios</string>
+    <string name="piko_video_variants">Variantes de vídeo</string>
     <string name="piko_pref_native_downloader_download_all">Descargar todo</string>
     <string name="piko_pref_native_downloader_no_media">No se encontraron medios</string>
     <string name="piko_pref_native_downloader_filename_title">Patrón de nombre de archivo para guardar</string>
@@ -127,8 +137,6 @@
     <string name="piko_pref_pause_search_suggestion_desc">Las sugerencias de búsqueda no se guardarán localmente</string>
     <string name="piko_pref_search_suggestion">Ocultar sugerencias de búsqueda</string>
     <string name="piko_pref_search_suggestion_desc">Oculta sugerencias de búsqueda en la sección Explorar</string>
-    <string name="piko_disunify_xchat_system">Desunificar el sistema xchat</string>
-    <string name="piko_disunify_xchat_system_desc">Recupere funciones como mensajes y hojas compartidas</string>
     <string name="piko_legacy_share_link">Enlaces compartidos heredados</string>
     <string name="piko_block_redirecting_to_x_lite">Bloquear la redirección a X Lite</string>
     <!-- Feature flags Settings -->
@@ -157,10 +165,10 @@
     <string name="piko_pref_show_poll_result">Mostrar resultados de encuestas</string>
     <string name="piko_pref_show_poll_result_desc">Ver resultados de encuestas sin votar</string>
     <string name="piko_pref_hide_community_notes">Ocultar notas de la comunidad</string>
-    <string name="piko_pref_hide_immersive_player">Ocultar reproductor inmersivo</string>
-    <string name="piko_pref_hide_immersive_player_desc">Elimina el deslizamiento hacia arriba para más videos en el reproductor de video</string>
+    <string name="piko_pref_hide_immersive_player">Desactivar reproductor inmersivo</string>
+    <string name="piko_pref_hide_immersive_player_desc">Desactiva el nuevo reproductor de video que te permite ver más videos deslizando hacia arriba</string>
     <string name="piko_pref_enable_vid_auto_advance">Habilitar el desplazamiento automático del vídeo</string>
-    <string name="piko_pref_enable_vid_auto_advance_desc">Habilita el desplazamiento automático de video en modo inmersivo</string>
+    <string name="piko_pref_enable_vid_auto_advance_desc">Activa el desplazamiento automático de video en el reproductor inmersivo</string>
     <string name="piko_pref_hide_hidden_replies">Ocultar respuestas ocultas</string>
     <string name="piko_pref_force_hd">Forzar videos HD</string>
     <string name="piko_pref_force_hd_desc">Los videos se reproducirán siempre en la calidad más alta</string>
@@ -234,14 +242,13 @@
     <string name="piko_pref_patch_info">Información del parche</string>
     <string name="piko_pref_version_info">Información de la versión</string>
     <string name="piko_changelogs_title">Registro de cambios</string>
+    <string name="piko_debug">Piko debug</string>
     <string name="piko_pref_patches">Parches</string>
     <string name="piko_pref_included">Incluido</string>
     <string name="piko_pref_excluded">Excluido</string>
     <string name="piko_pref_app_restart_rec">Se recomienda reiniciar la aplicación</string>
     <string name="piko_dialog_delete_title">Eliminar</string>
     <string name="piko_dialog_delete_message">¿Desea Eliminar %s?</string>
-    <string name="piko_single_page_settings">Ajustes en una página</string>
-    <string name="piko_single_page_settings_desc">Ver todos los ajustes en una sola página</string>
     <string name="piko_pref_search_type_ahead_users">Usuarios</string>
     <string name="piko_pref_search_type_ahead_events">Eventos</string>
     <string name="piko_pref_search_type_ahead_ordered_section">Sección ordenada</string>
@@ -276,6 +283,7 @@
     <string name="piko_app_icon_name_legacy_icon_4">Icono Legado 4</string>
     <string name="piko_app_icon_name_legacy_blue">Legado Azúl</string>
     <string name="piko_app_icon_name_twitter_blue">Twitter Azúl</string>
+    <string name="piko_app_icon_name_material_you">Material You</string>
     <string name="piko_app_icon_name_earth">Planeta</string>
     <string name="piko_app_icon_name_moon">Luna</string>
     <string name="piko_app_icon_name_mars">Marte</string>
@@ -380,4 +388,6 @@ Se recomienda leerla antes de usar esta función. Incluye información important
     <string name="piko_login_token_import_success_reopen_required">Vuelve a abrir la aplicación</string>
     <string name="piko_login_token_import_failed_missing_info">Error: falta \"username\", \"token\" o \"secret\"</string>
     <string name="piko_login_token_import_failed_already_exist">No se pudo agregar la cuenta (es posible que ya exista)</string>
+    <string name="piko_ok">Ok</string>
+    <string name="piko_cancel">Cancelar</string>
 </resources>

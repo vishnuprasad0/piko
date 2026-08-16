@@ -44,8 +44,12 @@ Then patch Twitter/X or Instagram:
 java -jar cli.jar patch --patches piko.mpp input.apkm
 ```
 
+
 **X-Shim**
 
+Starting `12.5.0-release.0` **you need not** apply X-Shim along with Piko patches. X login and XChat will work fine without X-Shim patches.
+
+<del>
 To patch with Twitter/X version 11.88 and above, you must include patches from another repo/project called [Piko-Shim](https://gitlab.com/inotia00/piko-shim/) developed by [@inotia00](https://github.com/inotia00)
 
 [➕ Add X-Shim to Morphe](https://morphe.software/add-source?gitlab=inotia00/x-shim)
@@ -63,17 +67,19 @@ To patch with Twitter/X version 11.88 and above, you must include patches from a
 
 > For an up-to-date patching guide, [follow this Reddit guide](https://www.reddit.com/r/MorpheApp/comments/1r4xt24/x_twitter_can_now_be_patched_with_piko_patches/).
 
+</del>
+
 ## ⚙️ Patch Details
 
 <!-- PATCHES_START -->
-> **[v3.8.0-dev.4](https://github.com/crimera/piko/releases/tag/v3.8.0-dev.4)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;127 patches total
+> **[v3.9.0-dev.7](https://github.com/crimera/piko/releases/tag/v3.9.0-dev.7)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;129 patches total
 <details>
-<summary>📦 X&nbsp;&nbsp;•&nbsp;&nbsp;74 patches</summary>
+<summary>📦 Twitter&nbsp;&nbsp;•&nbsp;&nbsp;73 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 12.7.1-release.0 |
+| 12.11.0-release.0 |
 | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
@@ -104,7 +110,6 @@ To patch with Twitter/X version 11.88 and above, you must include patches from a
 | [Delete from database](#delete-from-database) | Delete entries from database(cache) |  |
 | [Disable auto timeline scroll on launch](#disable-auto-timeline-scroll-on-launch) |  |  |
 | [Disable chirp font](#disable-chirp-font) |  |  |
-| [Disunify xchat system](#disunify-xchat-system) | Bring back legacy features like messages and share sheet. |  |
 | [Download patch](#download-patch) | Unlocks the ability to download videos and gifs from Twitter/X |  |
 | [Dynamic color](#dynamic-color) | Replaces the default Twitter Blue with the user's Material You palette. |  |
 | [Enable PiP mode automatically](#enable-pip-mode-automatically) | Enables PiP mode when you close the app |  |
@@ -141,7 +146,7 @@ To patch with Twitter/X version 11.88 and above, you must include patches from a
 | [No shortened URL](#no-shortened-url) | Get rid of t.co short urls. |  |
 | [Pause search suggestions](#pause-search-suggestions) | Search suggestions will not be saved locally |  |
 | [Remove Ads](#remove-ads) | Removed promoted posts, trends and google ads |  |
-| [Remove premium upsell](#remove-premium-upsell) | Removes premium upsell in home timeline |  |
+| [Remove premium upsell](#remove-premium-upsell) | Removes premium upsells |  |
 | [Remove search suggestions](#remove-search-suggestions) | Hide/Remove search suggestion in explore section |  |
 | [Remove view count](#remove-view-count) | Removes the view count from the bottom of tweets |  |
 | [Round off numbers](#round-off-numbers) | Enable or disable rounding off numbers |  |
@@ -156,19 +161,18 @@ To patch with Twitter/X version 11.88 and above, you must include patches from a
 </details>
 
 <details>
-<summary>📦 Instagram&nbsp;&nbsp;•&nbsp;&nbsp;53 patches</summary>
+<summary>📦 Instagram&nbsp;&nbsp;•&nbsp;&nbsp;56 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 435.0.0.37.76 |
+| 439.0.0.37.89 |
 | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
 | [Add settings](#add-settings) | Adds settings to control preferences are patching |  |
 | [Allow user network certificate](#allow-user-network-certificate) | Allows user network certificate for whitehat testing |  |
-| [Amoled theme](#amoled-theme) | Replaces Instagram's dark-mode background greys with pure black for AMOLED displays. |  |
 | [Change like animation](#change-like-animation) | Change the animation to one from existing Rings like animations |  |
 | [Change version code](#change-version-code) | Changes the version code of the app. This will turn off app store updates and allows downgrading an existing app install to an older app version. | • Version code |
 | [Clone](#clone) | Changes the package name and the app name. This allows you to install the patched app alongside the original Instagram app.<br>Caution: Do not select the official Morphe's "Change package name" universal patch. | • Package name<br>• App name |
@@ -183,9 +187,11 @@ To patch with Twitter/X version 11.88 and above, you must include patches from a
 | [Disable double tap like](#disable-double-tap-like) | Disable double tap like on post, reel, comment and message |  |
 | [Disable explore](#disable-explore) |  |  |
 | [Disable highlights](#disable-highlights) |  |  |
+| [Disable onboarding permission prompts](#disable-onboarding-permission-prompts) | Prevents contacts and location permission onboarding prompts from appearing on launch. |  |
 | [Disable screenshot detection](#disable-screenshot-detection) | Disables screenshots detection in DM |  |
 | [Disable stories](#disable-stories) |  |  |
 | [Disable story flipping](#disable-story-flipping) | Disable automatic flipping/moving to next story |  |
+| [Disable swipe to create](#disable-swipe-to-create) | Prevents opening the creation screen by swiping right on the home tab. |  |
 | [Disable typing status](#disable-typing-status) |  |  |
 | [Disable video autoplay](#disable-video-autoplay) |  |  |
 | [Download media](#download-media) | Adds ability to download posts, reels, stories and highlights |  |
@@ -206,11 +212,13 @@ To patch with Twitter/X version 11.88 and above, you must include patches from a
 | [More options on post](#more-options-on-post) | Adds an overflow menu button to get more options on post/reels, like copy description, copy username etc |  |
 | [More options on profile](#more-options-on-profile) | Adds a new button to handle user related data like copy handle, download profile picture etc |  |
 | [Open links externally](#open-links-externally) | Changes links to always open in your external browser, instead of the in-app browser. |  |
+| [Recommended flags](#recommended-flags) | Developer flags suggested by the community |  |
 | [Remove build expired popup](#remove-build-expired-popup) | Removes the popup that appears after a while, when the app version ages. |  |
 | [Remove empty bottom space](#remove-empty-bottom-space) | Removes empty space below bottom navigation bar |  |
 | [Sanitize share links](#sanitize-share-links) |  |  |
 | [Save media comment](#save-media-comment) | Adds a button to save media comments on posts and reels. |  |
 | [Stories audio autoplay](#stories-audio-autoplay) |  |  |
+| [Theme](#theme) | Adds Material You and AMOLED controls to Piko settings on Android 12 and later. On Android 8–11, it applies a fixed Material You-style theme or an optional AMOLED theme. | • Pure-black AMOLED theme for Android 8–11 |
 | [Unlock Plus benefits](#unlock-plus-benefits) | Unlocks 'Plus' subscription benefits that are checked locally. USE IT AT YOUR OWN RISK |  |
 | [Unlock developer options](#unlock-developer-options) | Unlocks developer option by long pressing home icon |  |
 | [Unlock employee options](#unlock-employee-options) | Unlocks all options using by employee for debugging |  |

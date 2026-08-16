@@ -9,17 +9,21 @@ package app.morphe.extension.instagram.patches.actionbar;
 
 import static app.morphe.extension.instagram.utils.IgStr.str;
 
+import android.app.Activity;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import java.util.Collections;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import app.morphe.extension.instagram.utils.Pref;
 import app.morphe.extension.instagram.settings.SettingsStatus;
 import app.morphe.extension.instagram.constants.UI;
 import app.morphe.extension.instagram.entity.ProfileInfo;
 import app.morphe.extension.instagram.patches.userprofile.ProfileMoreOption;
+import app.morphe.extension.instagram.patches.dm.SavedMessagesHook;
 import app.morphe.extension.instagram.entity.UserData;
 import app.morphe.extension.instagram.constants.Constants;
 
@@ -31,6 +35,14 @@ import com.instagram.common.session.UserSession;
 
 public class ActionBarPatch {
 
+    private static final Set<ImageView> GHOST_MODE_ICONS = Collections.newSetFromMap(new WeakHashMap<>());
+
+    private static void updateGhostModeIcons(boolean enabled) {
+        String icon = enabled ? UI.DRAWABLE_EYE_STROKE_ICON : UI.DRAWABLE_EYE_ICON;
+        for (ImageView imageView : GHOST_MODE_ICONS) {
+            UI.setThemedIcon(imageView, icon);
+        }
+    }
 
     private static void ghostModeToggle(ViewGroup viewGroup) throws Exception {
         if(SettingsStatus.ghostSection()){
@@ -38,14 +50,14 @@ public class ActionBarPatch {
 
             String iconStr = ghostModeToggle ? UI.DRAWABLE_EYE_STROKE_ICON:UI.DRAWABLE_EYE_ICON;
             ImageView imageView = UI.addImageViewToViewGroup(viewGroup, iconStr, null);
+            GHOST_MODE_ICONS.add(imageView);
             imageView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     try {
                         boolean ghostModeToggle= !Pref.getTurnOnAllGhostModes();
-                        String iconStr = ghostModeToggle ? UI.DRAWABLE_EYE_STROKE_ICON:UI.DRAWABLE_EYE_ICON;
                         Pref.setTurnOnAllGhostModes(ghostModeToggle);
-                        UI.setThemedIcon(imageView,iconStr);
+                        updateGhostModeIcons(ghostModeToggle);
 
                         String toastStr = ghostModeToggle ? str("piko_ghost_modes_on") : str("piko_ghost_modes_default");
                         Utils.showToastShort(toastStr);
@@ -80,9 +92,9 @@ public class ActionBarPatch {
         }
     }
 
-    public static void userProfileActionBarButton(ViewGroup viewGroup, UserSession userSession, Object userObject){
+    public static void userProfileActionBarButton(Activity activity, ViewGroup viewGroup, UserSession userSession, Object userObject){
         try {
-            if (viewGroup == null) {
+            if (activity == null || viewGroup == null) {
                 return;
             }
 
@@ -100,8 +112,7 @@ public class ActionBarPatch {
             }
 
             if(pref.contains(Constants.AB_PROFILE_INFO_ICON)) {
-                Context context = viewGroup.getContext();
-                UI.addImageViewToViewGroup(viewGroup, UI.DRAWABLE_INFO_ICON, () -> ProfileMoreOption.moreOptionsDailogueBox(context, userData));
+                UI.addImageViewToViewGroup(viewGroup, UI.DRAWABLE_INFO_ICON, () -> ProfileMoreOption.moreOptionsDailogueBox(activity, userData));
             }
 
 
@@ -125,6 +136,12 @@ public class ActionBarPatch {
 
             if(pref.contains(Constants.AB_GHOST_MODE_ICON)) {
                 ghostModeToggle(viewGroup);
+            }
+
+            if(SettingsStatus.saveDeletedMessages) {
+                Context context = viewGroup.getContext();
+                UI.addImageViewToViewGroup(viewGroup, UI.DRAWABLE_HISTORY_ICON,
+                        () -> SavedMessagesHook.openDeletedMessages(context));
             }
 
         } catch (Exception e) {

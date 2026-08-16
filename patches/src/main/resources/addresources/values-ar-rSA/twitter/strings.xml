@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Settings Search -->
+    <string name="piko_settings_search_hint">البحث في إعدادات Piko</string>
+    <string name="piko_settings_search_clear">مسح الإدخال</string>
+    <string name="piko_settings_search_no_results">لا توجد نتائج لـ \"%s\"</string>
     <!-- Premium Settings -->
     <string name="piko_title_premium">Premium</string>
     <string name="piko_pref_undo_posts">تمكين التراجع عن المنشورات</string>
@@ -32,9 +36,15 @@
     <string name="piko_pref_native_page_desc">تتوفر ميزات Piko المحلية هذه في قائمة المنشور.</string>
     <string name="piko_title_native_downloader">أداة التنزيل المحلية</string>
     <string name="piko_title_native_downloader_toggle">تمكين التنزيل المحلي</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res">تنزيل أعلى دقة للفيديو تلقائيًا</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res_desc">تخطي نافذة اختيار الجودة وتنزيل مباشرة أفضل دقة متاحة للفيديوهات الفردية</string>
+    <string name="piko_pref_native_downloader_show_download_icon">عرض أيقونة التنزيل</string>
+    <string name="piko_pref_native_downloader_show_copy_icon">عرض أيقونة النسخ</string>
+    <string name="piko_pref_native_downloader_show_variants_icon">عرض أيقونة الخيارات</string>
     <string name="piko_pref_native_downloader_inline_button">عرض زر التنزيل المضمن</string>
     <string name="piko_pref_native_downloader_inline_button_desc">يضيف زر تنزيل مباشرةً إلى شريط إجراءات المنشور</string>
     <string name="piko_pref_native_downloader_alert_title">تنزيل الوسائط</string>
+    <string name="piko_video_variants">خيارات الفيديو</string>
     <string name="piko_pref_native_downloader_download_all">تنزيل الكل</string>
     <string name="piko_pref_native_downloader_no_media">لم يتم العثور على الوسائط</string>
     <string name="piko_pref_native_downloader_filename_title">نمط حفظ اسم الملف</string>
@@ -118,8 +128,8 @@
     <string name="piko_pref_clear_tracking_params">مسح معلمات التتبع</string>
     <string name="piko_pref_unshorten_link">لا عنوان URL مختصر</string>
     <string name="piko_pref_unshorten_link_desc">تخلص من عناوين URL القصيرة لـ t.co</string>
-    <string name="piko_pref_round_off_numbers">إيقاف اختصار الأرقام</string>
-    <string name="piko_pref_round_off_numbers_desc">يوقف عرض الأرقام بصيغة K و M</string>
+    <string name="piko_pref_round_off_numbers">اختصار الأرقام</string>
+    <string name="piko_pref_round_off_numbers_desc">عرض الأرقام بصيغة K و M</string>
     <string name="piko_pref_debug_menu">تمكين قائمة Debug للمنشورات</string>
     <string name="piko_pref_quick_settings">تمكين الإعدادات السريعة</string>
     <string name="piko_pref_quick_settings_summary">إضافة زر الإعدادات السريعة في الشريط الجانبي</string>
@@ -127,8 +137,6 @@
     <string name="piko_pref_pause_search_suggestion_desc">لن يتم حفظ اقتراحات البحث محليًا</string>
     <string name="piko_pref_search_suggestion">إخفاء اقتراحات البحث</string>
     <string name="piko_pref_search_suggestion_desc">يخفي اقتراحات البحث في قسم استكشف</string>
-    <string name="piko_disunify_xchat_system">Disunify xchat system</string>
-    <string name="piko_disunify_xchat_system_desc">استعادة الميزات القديمة مثل الرسائل و نافذة المشاركة</string>
     <string name="piko_legacy_share_link">روابط المشاركة الكلاسيكية</string>
     <string name="piko_block_redirecting_to_x_lite">منع التحويل التلقائي إلى X Lite</string>
     <!-- Feature flags Settings -->
@@ -157,10 +165,10 @@
     <string name="piko_pref_show_poll_result">عرض نتائج التصويت</string>
     <string name="piko_pref_show_poll_result_desc">عرض نتائج التصويت دون التصويت</string>
     <string name="piko_pref_hide_community_notes">إخفاء ملاحظات المجتمع</string>
-    <string name="piko_pref_hide_immersive_player">إخفاء مشغل Immersive</string>
-    <string name="piko_pref_hide_immersive_player_desc">يزيل التمرير السريع لمزيد من مقاطع الفيديو في مشغل الفيديو</string>
+    <string name="piko_pref_hide_immersive_player">تعطيل مشغل Immersive</string>
+    <string name="piko_pref_hide_immersive_player_desc">تعطيل مشغل الفيديو الجديد الذي يتيح مشاهدة المزيد من الفيديوهات بالتمرير للأعلى</string>
     <string name="piko_pref_enable_vid_auto_advance">تمكين تمرير الفيديو تلقائيًا</string>
-    <string name="piko_pref_enable_vid_auto_advance_desc">تمكين التمرير التلقائي للفيديو في العرض الشامل</string>
+    <string name="piko_pref_enable_vid_auto_advance_desc">تمكين التمرير التلقائي للفيديو في مشغل Immersive</string>
     <string name="piko_pref_hide_hidden_replies">إخفاء الردود المخفية</string>
     <string name="piko_pref_force_hd">فرض فيديوهات عالية الدقة HD</string>
     <string name="piko_pref_force_hd_desc">سيتم تشغيل الفيديوهات بأعلى جودة دائمًا</string>
@@ -234,14 +242,13 @@
     <string name="piko_pref_patch_info">معلومات التعديل</string>
     <string name="piko_pref_version_info">معلومات الإصدار</string>
     <string name="piko_changelogs_title">سجل التغييرات</string>
+    <string name="piko_debug">Piko debug</string>
     <string name="piko_pref_patches">التعديلات</string>
     <string name="piko_pref_included">مضمّن</string>
     <string name="piko_pref_excluded">مستبعد</string>
     <string name="piko_pref_app_restart_rec">يوصى بإعادة تشغيل التطبيق</string>
     <string name="piko_dialog_delete_title">حذف</string>
     <string name="piko_dialog_delete_message">حذف %s؟</string>
-    <string name="piko_single_page_settings">صفحة الإعدادات الفردية</string>
-    <string name="piko_single_page_settings_desc">عرض الإعدادات في صفحة واحدة</string>
     <string name="piko_pref_search_type_ahead_users">المستخدمون</string>
     <string name="piko_pref_search_type_ahead_events">الأحداث</string>
     <string name="piko_pref_search_type_ahead_ordered_section">القسم المطلوب</string>
@@ -276,6 +283,7 @@
     <string name="piko_app_icon_name_legacy_icon_4">أيقونة قديمة 4</string>
     <string name="piko_app_icon_name_legacy_blue">الزرقاء القديمة</string>
     <string name="piko_app_icon_name_twitter_blue">تويتر الأزرق</string>
+    <string name="piko_app_icon_name_material_you">Material You</string>
     <string name="piko_app_icon_name_earth">الأرض</string>
     <string name="piko_app_icon_name_moon">القمر</string>
     <string name="piko_app_icon_name_mars">المريخ</string>
@@ -380,4 +388,6 @@ https://github.com/crimera/piko/blob/dev/docs/about_login_token_patch.md
     <string name="piko_login_token_import_success_reopen_required">أعد فتح التطبيق</string>
     <string name="piko_login_token_import_failed_missing_info">خطأ: \"اسم المستخدم\" أو \"الرمز\" أو \"السري\" مفقود</string>
     <string name="piko_login_token_import_failed_already_exist">فشل إضافة الحساب (قد يكون موجودًا بالفعل)</string>
+    <string name="piko_ok">موافق</string>
+    <string name="piko_cancel">إلغاء</string>
 </resources>

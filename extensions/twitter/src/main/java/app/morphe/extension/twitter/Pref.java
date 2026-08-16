@@ -80,8 +80,24 @@ public class Pref {
         return Utils.getBooleanPref(Settings.VID_NATIVE_DOWNLOADER) && SettingsStatus.nativeDownloader;
     }
 
+    public static boolean nativeDownloaderAutodownloadHighestVideoRes() {
+        return Utils.getBooleanPref(Settings.VID_NATIVE_DOWNLOADER_AUTODOWNLOAD_HIGHEST_VIDEO_RES) && enableNativeDownloader();
+    }
+
+    public static boolean nativeDownloaderShowDownloadIcon() {
+        return Utils.getBooleanPref(Settings.VID_NATIVE_DOWNLOADER_SHOW_DOWNLOAD_ICON) && enableNativeDownloader();
+    }
+
+    public static boolean nativeDownloaderShowCopyIcon() {
+        return Utils.getBooleanPref(Settings.VID_NATIVE_DOWNLOADER_SHOW_COPY_ICON) && enableNativeDownloader();
+    }
+
+    public static boolean nativeDownloaderShowVariantsIcon() {
+        return Utils.getBooleanPref(Settings.VID_NATIVE_DOWNLOADER_SHOW_VARIANTS_ICON) && enableNativeDownloader();
+    }
+
     public static boolean enableInlineDownloadButton() {
-        return Utils.getBooleanPref(Settings.VID_INLINE_DOWNLOAD_BUTTON);
+        return Utils.getBooleanPref(Settings.VID_INLINE_DOWNLOAD_BUTTON) && enableNativeDownloader() && SettingsStatus.inlineDownloadButton;
     }
 
     public static int natveTranslatorProvider(){
@@ -154,7 +170,10 @@ public class Pref {
         return 3;
     }
     public static String customSharingDomain() {
-        return Utils.getStringPref(Settings.CUSTOM_SHARING_DOMAIN);
+        if (SettingsStatus.customSharingDomainEnabled) {
+            return Utils.getStringPref(Settings.CUSTOM_SHARING_DOMAIN);
+        }
+        return "";
     }
 
     public static ArrayList hideRecommendedUsers(ArrayList users) {
@@ -431,10 +450,6 @@ public class Pref {
         return Utils.getBooleanPref(Settings.TIMELINE_HIDE_POST_DETAILED_METRICS);
     }
 
-    public static boolean disUnifyXChatSystem(){
-        return !Utils.getBooleanPref(Settings.MISC_DISUNIFY_XCHAT_SYSTEM);
-    }
-
     public static boolean enableNativeShareMenu(){
         return Utils.getBooleanPref(Settings.NATIVE_SHARE_MENU) && SettingsStatus.enableNativeShareMenu;
     }
@@ -449,6 +464,10 @@ public class Pref {
 
     public static boolean moreInfoOnProfile(){
         return Utils.getBooleanPref(Settings.MORE_INFO_ON_PROFILE) && SettingsStatus.moreInfoOnProfile;
+    }
+
+    public static ArrayList nativeShareMenuToHide() {
+        return getList(Settings.NATIVE_SHARE_MENU_ITEMS_TO_HIDE.key);
     }
 
     //end

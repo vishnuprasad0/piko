@@ -38,7 +38,6 @@ public class Settings {
     public static final BooleanSetting MISC_HIDE_SOCIAL_PROOF = new BooleanSetting("misc_hide_social_proof", false);
     public static final BooleanSetting MISC_HIDE_SEARCH_SUGGESTIONS = new BooleanSetting("misc_hide_search_suggestions", false);
     public static final BooleanSetting MISC_PAUSE_SEARCH_SUGGESTIONS = new BooleanSetting("misc_pause_search_suggestions", false);
-    public static final BooleanSetting MISC_DISUNIFY_XCHAT_SYSTEM = new BooleanSetting("MISC_DISUNIFY_XCHAT_SYSTEM", true);
 
     public static final BooleanSetting ADS_HIDE_PROMOTED_TRENDS = new BooleanSetting("ads_hide_promoted_trends", true);
     public static final BooleanSetting ADS_HIDE_PROMOTED_POSTS = new BooleanSetting("ads_hide_promoted_posts", true);
@@ -55,6 +54,10 @@ public class Settings {
     public static final BooleanSetting ADS_REMOVE_TODAYS_NEW = new BooleanSetting("ads_remove_todays_news", true);
 
     public static final BooleanSetting VID_NATIVE_DOWNLOADER = new BooleanSetting("vid_native_downloader", true);
+    public static final BooleanSetting VID_NATIVE_DOWNLOADER_AUTODOWNLOAD_HIGHEST_VIDEO_RES = new BooleanSetting("vid_native_downloader_autodownload_highest_video_res", false);
+    public static final BooleanSetting VID_NATIVE_DOWNLOADER_SHOW_DOWNLOAD_ICON = new BooleanSetting("vid_native_downloader_show_download_icon", true);
+    public static final BooleanSetting VID_NATIVE_DOWNLOADER_SHOW_COPY_ICON = new BooleanSetting("vid_native_downloader_show_copy_icon", true);
+    public static final BooleanSetting VID_NATIVE_DOWNLOADER_SHOW_VARIANTS_ICON = new BooleanSetting("vid_native_downloader_show_variants_icon", true);
     public static final BooleanSetting VID_INLINE_DOWNLOAD_BUTTON = new BooleanSetting("vid_inline_download_button", true);
     public static final BooleanSetting BROWSE_OBJECT = new BooleanSetting("browse_object", true);
     public static final StringSetting VID_NATIVE_DOWNLOADER_FILENAME = new StringSetting("vid_native_downloader_filename", "0");
@@ -69,6 +72,7 @@ public class Settings {
     public static final BooleanSetting SHARE_IMAGE_ENABLED = new BooleanSetting("share_image_enabled", true);
     public static final BooleanSetting SHARE_IMAGE_AUTOCLEANUP = new BooleanSetting("share_image_autocleanup", true);
     public static final BooleanSetting NATIVE_SHARE_MENU = new BooleanSetting("native_share_menu", true);
+    public static final StringSetting NATIVE_SHARE_MENU_ITEMS_TO_HIDE = new StringSetting("native_share_menu_to_hide", "");
 
     public static final BooleanSetting TIMELINE_DISABLE_AUTO_SCROLL = new BooleanSetting("timeline_disable_auto_scroll", true);
     public static final BooleanSetting TIMELINE_SHOW_SOURCE_LABEL = new BooleanSetting("timeline_show_source_label", false);
@@ -147,6 +151,4 @@ public class Settings {
     public static final String BACKUP_SECTION = "backup_section";
     public static final String NATIVE_SECTION = "native_section";
     public static final String READER_MODE_KEY = "readerMode";
-
-    public static final BooleanSetting SINGLE_PAGE_SETTINGS = new BooleanSetting("single_page_settings", false);
 }

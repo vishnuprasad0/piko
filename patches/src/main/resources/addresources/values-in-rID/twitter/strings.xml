@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Settings Search -->
+    <string name="piko_settings_search_hint">Cari pengaturan Piko</string>
+    <string name="piko_settings_search_clear">Hapus masukan</string>
+    <string name="piko_settings_search_no_results">Tidak ada hasil untuk \"%s\"</string>
     <!-- Premium Settings -->
     <string name="piko_title_premium">Premium</string>
     <string name="piko_pref_undo_posts">Aktifkan batalkan postingan</string>
@@ -32,9 +36,15 @@
     <string name="piko_pref_native_page_desc">Fitur bawaan Piko ini tersedia di menu postingan.</string>
     <string name="piko_title_native_downloader">Pengunduh bawaan</string>
     <string name="piko_title_native_downloader_toggle">Aktifkan pengunduh bawaan</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res">Unduh video dengan resolusi tertinggi secara otomatis</string>
+    <string name="piko_pref_native_downloader_autodownload_highest_video_res_desc">Lewati jendela dialog pemilihan dan langsung unduh resolusi terbaik yang tersedia untuk setiap video.</string>
+    <string name="piko_pref_native_downloader_show_download_icon">Tampilkan ikon unduh</string>
+    <string name="piko_pref_native_downloader_show_copy_icon">Tampilkan ikon salin</string>
+    <string name="piko_pref_native_downloader_show_variants_icon">Tampilkan ikon varian</string>
     <string name="piko_pref_native_downloader_inline_button">Tampilkan tombol unduh pada halaman</string>
     <string name="piko_pref_native_downloader_inline_button_desc">Menambahkan tombol unduh langsung ke bilah tindakan postingan</string>
     <string name="piko_pref_native_downloader_alert_title">Unduh media</string>
+    <string name="piko_video_variants">Varian video</string>
     <string name="piko_pref_native_downloader_download_all">Unduh semua</string>
     <string name="piko_pref_native_downloader_no_media">Tidak ditemukan media</string>
     <string name="piko_pref_native_downloader_filename_title">Simpan pola nama berkas</string>
@@ -127,8 +137,6 @@
     <string name="piko_pref_pause_search_suggestion_desc">Saran pencarian tidak akan disimpan secara lokal</string>
     <string name="piko_pref_search_suggestion">Sembunyikan saran pencarian</string>
     <string name="piko_pref_search_suggestion_desc">Menyembunyikan saran pencarian di bagian jelajahi</string>
-    <string name="piko_disunify_xchat_system">Memisahkan sistem xchat</string>
-    <string name="piko_disunify_xchat_system_desc">Kembalikan fitur-fitur usang seperti pesan dan lembar bagikan</string>
     <string name="piko_legacy_share_link">Tautan berbagi versi lama</string>
     <string name="piko_block_redirecting_to_x_lite">Blokir pengalihan ke X Lite</string>
     <!-- Feature flags Settings -->
@@ -157,10 +165,10 @@
     <string name="piko_pref_show_poll_result">Tampilkan hasil polling</string>
     <string name="piko_pref_show_poll_result_desc">Lihat hasil polling tanpa memberikan suara</string>
     <string name="piko_pref_hide_community_notes">Sembunyikan catatan komunitas</string>
-    <string name="piko_pref_hide_immersive_player">Sembunyikan pemutar imersif</string>
-    <string name="piko_pref_hide_immersive_player_desc">Menghapus geser ke atas untuk video lainnya di pemutar video</string>
+    <string name="piko_pref_hide_immersive_player">Nonaktifkan pemutar imersif</string>
+    <string name="piko_pref_hide_immersive_player_desc">Nonaktifkan pemutar video baru yang memungkinkan Anda menonton lebih banyak video dengan menggeser ke atas</string>
     <string name="piko_pref_enable_vid_auto_advance">Aktifkan pengguliran video otomatis</string>
-    <string name="piko_pref_enable_vid_auto_advance_desc">Mengaktifkan gulir otomatis video di tampilan imersif</string>
+    <string name="piko_pref_enable_vid_auto_advance_desc">Mengaktifkan pengguliran otomatis video di pemutar imersif</string>
     <string name="piko_pref_hide_hidden_replies">Sembunyikan balasan yang disembunyikan</string>
     <string name="piko_pref_force_hd">Paksa video HD</string>
     <string name="piko_pref_force_hd_desc">Video akan selalu diputar dalam kualitas tertinggi</string>
@@ -241,8 +249,6 @@
     <string name="piko_pref_app_restart_rec">Disarankan untuk memulai ulang aplikasi</string>
     <string name="piko_dialog_delete_title">Hapus</string>
     <string name="piko_dialog_delete_message">Hapus %s?</string>
-    <string name="piko_single_page_settings">Halaman pengaturan tunggal</string>
-    <string name="piko_single_page_settings_desc">Lihat pengaturan di satu halaman</string>
     <string name="piko_pref_search_type_ahead_users">Pengguna</string>
     <string name="piko_pref_search_type_ahead_events">Acara</string>
     <string name="piko_pref_search_type_ahead_ordered_section">Bagian yang diurutkan</string>
@@ -277,6 +283,7 @@
     <string name="piko_app_icon_name_legacy_icon_4">Ikon usang 4</string>
     <string name="piko_app_icon_name_legacy_blue">Biru Usang</string>
     <string name="piko_app_icon_name_twitter_blue">Twitter Biru</string>
+    <string name="piko_app_icon_name_material_you">Material You</string>
     <string name="piko_app_icon_name_earth">Bumi</string>
     <string name="piko_app_icon_name_moon">Bulan</string>
     <string name="piko_app_icon_name_mars">Mars</string>
@@ -381,4 +388,6 @@ Disarankan untuk membaca halaman ini sebelum menggunakan fitur ini. Halaman ters
     <string name="piko_login_token_import_success_reopen_required">Buka kembali aplikasi</string>
     <string name="piko_login_token_import_failed_missing_info">Kesalahan: \"username\" atau \"token\" atau \"secret\" tidak ditemukan</string>
     <string name="piko_login_token_import_failed_already_exist">Gagal menambahkan akun (mungkin sudah ada)</string>
+    <string name="piko_ok">OKE</string>
+    <string name="piko_cancel">Batalkan</string>
 </resources>
