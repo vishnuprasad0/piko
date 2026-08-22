@@ -128,12 +128,12 @@ val instantsGalleryPatch =
                 // appear on the camera even before settings are opened. Injected at the return of
                 // InstagramAppShell.onCreate (resolved by sharedExtensionPatch via settingsPatch).
                 instagramInitHook.fingerprint.method.apply {
-                    val returnVoidIndex = indexOfFirstInstruction(Opcode.RETURN_VOID)
+                    // Insert right after invoke-super: the register holding the context there is
+                    // reused later in onCreate, so reading it at the return fails verification.
                     val invokeSuperIndex = indexOfFirstInstruction(Opcode.INVOKE_SUPER)
                     val contextRegister = getInstruction(invokeSuperIndex).registersUsed[0]
-
                     addInstruction(
-                        returnVoidIndex,
+                        invokeSuperIndex + 1,
                         """
                         invoke-static {v$contextRegister}, $INSTANTS_HOOK_DESCRIPTOR->initActivityTracker(Landroid/content/Context;)V
                         """.trimIndent(),
@@ -143,21 +143,22 @@ val instantsGalleryPatch =
                 // Stash the live QuickSnapCameraViewModel for the auto-post path. Rather than guess
                 // which lifecycle callback fires on camera-open, inject an idempotent weak-ref store
                 // into every non-static instance method (p0 = this). Anchored on the unobfuscated
-                // class only (§11). Some methods may reject it (no free register); if none take it
-                // there's no live VM, so that's a hard failure.
+                // class only (§11). The class must be taken as mutable — writes to the methods
+                // of a fingerprint's classDef land on a copy and are dropped.
                 val stashed =
-                    QuickSnapCameraViewModelClassFingerprint.classDef.methods.filter { m ->
-                        !AccessFlags.STATIC.isSet(m.accessFlags) &&
-                            m.name != "<init>" &&
-                            m.implementation != null
-                    }.count { m ->
-                        runCatching {
-                            m.addInstruction(
-                                0,
-                                "invoke-static {p0}, $INSTANTS_HOOK_DESCRIPTOR->noteLiveViewModel(Ljava/lang/Object;)V",
-                            )
-                        }.isSuccess
-                    }
+                    mutableClassDefBy(QuickSnapCameraViewModelClassFingerprint.classDef)
+                        .methods.filter { m ->
+                            !AccessFlags.STATIC.isSet(m.accessFlags) &&
+                                m.name != "<init>" &&
+                                m.implementation != null
+                        }.count { m ->
+                            runCatching {
+                                m.addInstruction(
+                                    0,
+                                    "invoke-static/range {p0 .. p0}, $INSTANTS_HOOK_DESCRIPTOR->noteLiveViewModel(Ljava/lang/Object;)V",
+                                )
+                            }.isSuccess
+                        }
 
                 if (stashed == 0) {
                     throw PatchException(
