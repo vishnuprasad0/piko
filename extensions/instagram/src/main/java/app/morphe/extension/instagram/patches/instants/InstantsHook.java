@@ -56,6 +56,11 @@ public class InstantsHook {
             app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                 @Override public void onActivityResumed(Activity activity) {
                     sResumedActivity = new WeakReference<>(activity);
+                    // Another modal (Stories camera, story viewer) coming to the front means the
+                    // Instants camera is behind it — drop the confirmation so it can't be inherited.
+                    if (isCameraActivity(activity) && !isInstantsCameraActivity(activity)) {
+                        onInstantsCameraGone();
+                    }
                     maybeAddOverlayButton(activity);
                 }
                 @Override public void onActivityPaused(Activity activity) {
@@ -63,12 +68,12 @@ public class InstantsHook {
                     // Removal happens on stop/destroy below.
                 }
                 @Override public void onActivityStopped(Activity activity) {
-                    if (isInstantsCameraActivity(activity)) onInstantsCameraGone();
+                    if (isInstantsCameraActivity(activity) || isOverlayHost(activity)) onInstantsCameraGone();
                 }
                 @Override public void onActivityStarted(Activity activity) {}
                 @Override public void onActivitySaveInstanceState(Activity activity, android.os.Bundle outState) {}
                 @Override public void onActivityDestroyed(Activity activity) {
-                    if (isInstantsCameraActivity(activity)) onInstantsCameraGone();
+                    if (isInstantsCameraActivity(activity) || isOverlayHost(activity)) onInstantsCameraGone();
                 }
                 @Override public void onActivityCreated(Activity activity, android.os.Bundle savedInstanceState) {}
             });
@@ -87,15 +92,22 @@ public class InstantsHook {
         return activity != null && activity == confirmed;
     }
 
+    /** True if [activity] is the one the overlay button was actually added to. */
+    private static boolean isOverlayHost(Activity activity) {
+        Activity host = sOverlayHost != null ? sOverlayHost.get() : null;
+        return activity != null && activity == host;
+    }
+
     /** The Instants camera Activity has stopped/been destroyed — tear down its button and signal. */
     private static void onInstantsCameraGone() {
         removeOverlayButton();
         sInstantsCameraActivity = null;
-        sQuickSnapSeenAt = 0;
     }
 
     // ---- Overlay button management ----
     private static volatile View sOverlayButton;
+    /** The Activity the button was added to, so it can be torn down even if confirmation was lost. */
+    private static volatile WeakReference<Activity> sOverlayHost;
     /** The Activity instance the QuickSnap VM confirmed as the Instants camera. */
     private static volatile WeakReference<Activity> sInstantsCameraActivity;
 
@@ -103,11 +115,10 @@ public class InstantsHook {
         try {
             if (activity == null) return;
             if (!isCameraActivity(activity)) return;
-            // TransparentModalActivity hosts both the Instants and Stories cameras; only Instants
-            // runs the QuickSnap VM. Show the button only if this Activity was confirmed as the
-            // Instants camera or the VM was seen recently — otherwise it leaks onto Stories.
-            if (!isInstantsCameraActivity(activity)
-                    && System.currentTimeMillis() - sQuickSnapSeenAt > 4000) return;
+            // TransparentModalActivity hosts the Instants camera, the Stories camera and the story
+            // viewer alike; only Instants runs the QuickSnap VM. Bind to that exact instance — a
+            // "seen recently" window would hand the button to whatever modal opens next.
+            if (!isInstantsCameraActivity(activity)) return;
             if (sOverlayButton != null) return; // already added
 
             float density = activity.getResources().getDisplayMetrics().density;
@@ -134,12 +145,7 @@ public class InstantsHook {
             bg.setCornerRadius(22 * density);
             bg.setColor(themed("igds_color_primary_button", 0xFF0095F6));
             button.setBackground(bg);
-            button.setOnClickListener(v -> {
-                Activity current = sResumedActivity != null ? sResumedActivity.get() : null;
-                if (current != null) {
-                    launchPickerFromOverlay(current);
-                }
-            });
+            button.setOnClickListener(v -> launchPickerFromOverlay(v.getContext()));
 
             // Top-right, with a margin clearing Instagram's own top-right button.
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
@@ -150,6 +156,7 @@ public class InstantsHook {
             activity.addContentView(button, lp);
 
             sOverlayButton = button;
+            sOverlayHost = new WeakReference<>(activity);
         } catch (Exception e) {
             Logger.printException(() -> "instants maybeAddOverlayButton failed", e);
         }
@@ -178,6 +185,7 @@ public class InstantsHook {
                 parent.removeView(sOverlayButton);
             }
             sOverlayButton = null;
+            sOverlayHost = null;
         } catch (Exception e) {
             Logger.printException(() -> "instants removeOverlayButton failed", e);
         }
@@ -200,14 +208,11 @@ public class InstantsHook {
     // ---- Live ViewModel + auto-post (obfuscated names resolved at patch time — see names()) ----
 
     private static volatile WeakReference<Object> sLiveViewModel;
-    /** Last time the QuickSnap VM was seen running — our "Instants camera is on screen" signal. */
-    private static volatile long sQuickSnapSeenAt;
 
     /** Injected at the entry of QuickSnapCameraViewModel's instance methods (p0 = VM). */
     public static void noteLiveViewModel(Object vm) {
         if (vm == null) return;
         sLiveViewModel = new WeakReference<>(vm);
-        sQuickSnapSeenAt = System.currentTimeMillis();
         // This VM only runs on the Instants camera, so it's the reliable moment to confirm the
         // Activity and add the button. May be called off the main thread, so hop to it for the view.
         Activity current = sResumedActivity != null ? sResumedActivity.get() : null;
